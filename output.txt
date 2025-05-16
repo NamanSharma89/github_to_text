@@ -1,0 +1,4871 @@
+## File: Dockerfile
+
+```text
+# Dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install uv
+RUN pip install uv
+
+# Set default environment (will be overridden at runtime)
+ENV APP_ENV=dev
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
+ENV DATA_DIR=data
+
+# Copy project files
+COPY . .
+
+# Make entrypoint script executable
+RUN chmod +x docker-entrypoint.sh
+
+# Use uv to install dependencies
+RUN uv pip install -e .
+
+# Expose the application port
+EXPOSE 8080
+
+# Use the entrypoint script
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Start the application with environment-aware settings
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+```
+
+## File: .uvproject
+
+```text
+version = 1
+
+[tool]
+python-version = "3.9"
+
+[env]
+requirements-dev = ".[dev]"
+```
+
+## File: pyproject.toml
+
+```toml
+# pyproject.toml
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hospital-data-chatbot"
+version = "0.1.0"
+description = "AI-powered hospital data chatbot using Ollama and Text-to-SQL"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    # Core dependencies
+    "polars>=0.18.0",          # Fast DataFrame library
+    "numpy>=1.24.0",           # Numerical computing
+    "fastapi>=0.100.0",        # API framework
+    "uvicorn>=0.22.0",         # ASGI server
+    "openpyxl>=3.1.2",         # Excel file handling
+    "fastexcel>=0.7.0",        # Faster Excel support
+    "psycopg2-binary>=2.9.5",  # PostgreSQL adapter
+    "python-dotenv>=1.0.0",    # Environment variable management
+    "pydantic>=2.0.0",         # Data validation
+    "rich>=13.0.0",            # Better console output
+    
+    # Required for Ollama integration
+    "requests>=2.31.0",        # HTTP requests for Ollama API
+    "httpx>=0.24.1",           # Modern HTTP client with async support
+    
+    # AWS dependencies (optional if using only Ollama)
+    "boto3>=1.28.0",           # AWS SDK (if using S3 or Bedrock)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.0.0",
+    "flake8>=6.0.0",
+    "pytest-cov>=4.0.0",       # Coverage reporting
+    "mypy>=1.0.0",             # Type checking
+]
+
+# Production dependencies
+prod = [
+    "gunicorn>=21.0.0",        # WSGI HTTP Server
+]
+
+# Database-specific dependencies
+database = [
+    "alembic>=1.10.0",         # Database migrations
+    "sqlalchemy>=2.0.0",       # SQL toolkit and ORM
+]
+
+# Ollama-specific dependencies
+ollama = [
+    "requests>=2.31.0",        # HTTP requests for Ollama API
+    "retry>=0.9.2",            # Retry mechanism for API calls
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.9"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+```
+
+## File: README.md
+
+```markdown
+# 🏥 Hospital Data Chatbot
+
+> An AI-powered chatbot for analyzing hospital patient data using AWS Bedrock, Text-to-SQL, and Machine Learning
+
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Python: 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100.0+-ff69b4)
+![Polars](https://img.shields.io/badge/Polars-0.18.0+-orange)
+
+## 📋 Overview
+
+This application provides an intelligent chatbot interface for hospital staff to query patient and diagnosis data through natural language. It uses AWS Bedrock Large Language Models to interpret queries, converts them to SQL, and leverages machine learning models to provide advanced insights and predictions.
+
+### Key Features
+
+- 🔍 **Natural Language to SQL**: Convert plain language questions into precise SQL queries
+- 🧠 **Machine Learning Insights**: Predictive analytics for patient risk and outcomes
+- 📊 **Statistical Analysis**: Accurate calculations on patient metrics and trends
+- 🧹 **Advanced Data Processing**: Data sanitization and feature engineering pipelines
+- 🔄 **Automated Data Pipeline**: Scheduled processing for up-to-date insights
+- 📝 **PostgreSQL Integration**: Direct querying of hospital database with proper relationships
+- 🚀 **AWS Integration**: Leverages AWS Bedrock, SageMaker, Lambda, and other services
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TD
+    subgraph DataSources["Data Sources"]
+        RDS[("AWS RDS<br>PostgreSQL")]
+        S3Raw[("AWS S3<br>Raw Data")]
+    end
+    
+    subgraph DataProcessing["Data Processing"]
+        Lambda["AWS Lambda<br>Feature Engineering"]
+        S3Features[("AWS S3<br>Feature Store")]
+    end
+    
+    subgraph MLPipeline["ML Pipeline"]
+        SageTrain["Amazon SageMaker<br>Training Jobs"]
+        SageModel["Amazon SageMaker<br>Model Registry"]
+        SageEndpoint["Amazon SageMaker<br>Endpoints"]
+    end
+    
+    subgraph APILayer["API Layer"]
+        API["Amazon API Gateway"]
+        EC2["EC2 Instance<br>FastAPI Application"]
+        ELB["Elastic Load Balancer"]
+    end
+    
+    subgraph Monitoring["Monitoring & Management"]
+        CloudWatch["Amazon CloudWatch"]
+        CloudTrail["AWS CloudTrail"]
+        SNS["Amazon SNS<br>Alerts"]
+    end
+    
+    %% Connections
+    RDS --> Lambda
+    S3Raw --> Lambda
+    Lambda --> S3Features
+    S3Features --> SageTrain
+    
+    SageTrain --> SageModel
+    SageModel --> SageEndpoint
+    
+    Lambda --> EC2
+    SageEndpoint --> EC2
+    EC2 --> ELB
+    ELB --> API
+    
+    SageEndpoint --> CloudWatch
+    EC2 --> CloudWatch
+    CloudWatch --> SNS
+    API --> CloudTrail
+    
+    %% Style definitions
+    classDef aws fill:#FF9900,stroke:#232F3E,color:#232F3E,stroke-width:2px
+    classDef db fill:#3B48CC,stroke:#232F3E,color:white,stroke-width:2px
+    classDef storage fill:#3B48CC,stroke:#232F3E,color:white,stroke-width:2px
+    classDef api fill:#CC2264,stroke:#232F3E,color:white,stroke-width:2px
+    classDef compute fill:#EC7211,stroke:#232F3E,color:white,stroke-width:2px
+    classDef monitoring fill:#CC2264,stroke:#232F3E,color:white,stroke-width:2px
+    
+    %% Apply styles
+    class RDS,S3Raw,S3Features db
+    class Lambda compute
+    class SageTrain,SageModel,SageEndpoint aws
+    class API,ELB api
+    class EC2 compute
+    class CloudWatch,CloudTrail,SNS monitoring
+```
+
+## ✨ Advanced Capabilities
+
+### Text-to-SQL Translation
+
+Our application uses AWS Bedrock to intelligently translate natural language questions into SQL queries:
+
+1. **Query Understanding**: Analyzes intent and context of natural language questions
+2. **Schema-Aware Translation**: Generates SQL based on hospital database schema
+3. **SQL Validation**: Ensures queries are safe and optimized before execution
+4. **Result Formatting**: Presents results in an easy-to-understand natural language format
+
+Example query:
+```
+"How many patients over 65 were diagnosed with pneumonia last month?"
+```
+
+### Machine Learning Predictions
+
+The system provides several ML-powered insights:
+
+1. **Patient Risk Stratification**: Classifies patients by risk level using demographic and clinical factors
+2. **Readmission Prediction**: Identifies patients at risk of 30-day readmission
+3. **Diagnosis Clustering**: Groups similar diagnoses to uncover patterns
+4. **Length of Stay Prediction**: Forecasts expected hospital stay duration
+
+All models are trained using Amazon SageMaker and served through SageMaker endpoints.
+
+## 🚀 Getting Started
+
+### Setup with uv (Recommended)
+
+#### Unix/MacOS
+```bash
+./setup_uv.sh
+```
+
+### Traditional Setup
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run locally for testing
+python -m app.main
+```
+
+## 🧪 Local Testing
+
+### Prerequisites
+
+1. Install a local PostgreSQL instance or use Docker:
+   ```bash
+   docker run --name postgres-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=hospital_data_test -p 5432:5432 -d postgres:14
+   ```
+
+2. Create a `.env` file in project root:
+   ```
+   DEBUG=True
+   PORT=8080
+   DATA_DIR=data
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=hospital_data_test
+   DB_USER=postgres
+   DB_PASSWORD=postgres
+   USE_S3=False
+   ```
+
+3. Prepare test data:
+   ```bash
+   mkdir -p data/raw
+   cp path/to/your/hospital_data.xlsx data/raw/
+   ```
+
+4. Launch the API:
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+   ```
+
+5. Access the API documentation:
+   - http://localhost:8080/docs
+
+## 📚 API Endpoints
+
+### Text-to-SQL Interface
+
+```
+POST /api/db/sql-chat
+```
+
+Request body:
+```json
+{
+  "query": "How many male patients with diabetes were admitted last year?",
+  "include_sql": true,
+  "include_reasoning": false
+}
+```
+
+### ML Prediction Endpoints
+
+```
+GET /api/ml/patient-risk?patient_id=P12345
+GET /api/ml/readmission-risk/P12345
+GET /api/ml/diagnosis-clusters
+```
+
+### Core Endpoints
+
+```
+GET /api/health
+GET /api/data/stats
+POST /api/chat
+POST /api/import-to-db
+```
+
+## 🌩️ AWS Deployment
+
+```bash
+# Build Docker image
+docker build -t hospital-chatbot:latest .
+
+# Push to ECR
+aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+docker tag hospital-chatbot:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hospital-chatbot:latest
+docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hospital-chatbot:latest
+
+# Deploy CloudFormation stack
+aws cloudformation deploy \
+  --template-file deploy/cloudformation.yaml \
+  --stack-name hospital-chatbot \
+  --parameter-overrides Environment=dev ModelId=anthropic.claude-3-sonnet-20240229-v1:0 \
+  --capabilities CAPABILITY_IAM
+```
+
+## 🔒 Security Features
+
+- ✅ **SQL Injection Prevention**: All SQL queries are validated and sanitized
+- ✅ **Input Validation**: Comprehensive data validation at all entry points
+- ✅ **IAM Role-Based Access**: Fine-grained AWS permissions
+- ✅ **Data Encryption**: Hospital data encrypted at rest and in transit
+- ✅ **API Key Authentication**: Secure API access with key validation
+
+## 📂 Project Structure
+
+```
+hospital-data-chatbot/
+│
+├── app/                         # Application code
+│   ├── api/                     # API endpoints
+│   │   ├── routes.py            # Main API routes
+│   │   ├── sql_chat_routes.py   # Text-to-SQL endpoints
+│   │   └── ml_routes.py         # Machine learning endpoints
+│   ├── config/                  # Configuration
+│   ├── core/                    # Core logic
+│   │   ├── data_processor.py    # Data processing and sanitization
+│   │   ├── sql_query_engine.py  # Text-to-SQL engine
+│   │   └── llm_connector.py     # AWS Bedrock LLM interface
+│   ├── ml/                      # ML components
+│   │   ├── feature_engineering.py  # Feature extraction
+│   │   ├── feature_store.py     # Feature storage and caching
+│   │   ├── sagemaker_integration.py # Model training and deployment
+│   │   └── hospital_ml_models.py   # Domain-specific ML models
+│   ├── models/                  # Data models
+│   └── utils/                   # Utilities
+│       ├── db.py                # Database utilities
+│       └── calculation_handler.py # Statistical calculation handling
+│
+├── data/                        # Data files
+│   ├── raw/                     # Original data
+│   └── processed/               # Processed data
+│
+├── deploy/                      # Deployment files
+│   └── cloudformation.yaml      # AWS CloudFormation template
+│
+├── tests/                       # Unit tests
+│
+├── scripts/                     # Utility scripts
+│   └── nightly_import.py        # Nightly data import
+│
+├── Dockerfile                   # Container definition
+├── pyproject.toml               # Project dependencies
+├── setup.py                     # Package setup
+└── README.md                    # This file
+```
+
+## 🚀 Future Enhancements
+
+- 💾 **Model A/B Testing**: Compare different model versions for optimal performance
+- 🧠 **Model Drift Detection**: Automatically detect when models need retraining
+- 🖥️ **Web Dashboard**: Interactive dashboard for visualizing ML insights
+- 🔄 **Real-time Monitoring**: Stream processing for immediate alerts
+- 📊 **Enhanced Visualizations**: Visual representation of prediction results
+- 🔍 **Natural Language Explanations**: Human-readable explanations of ML predictions
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 👥 Contributors
+
+- Naman Sharma
+```
+
+## File: setup.py
+
+```python
+from setuptools import setup, find_packages
+
+setup(
+    name="hospital-data-chatbot",
+    version="0.1.0",
+    packages=find_packages(),
+    include_package_data=True,
+    python_requires=">=3.9",
+)
+```
+
+## File: docker-entrypoint.sh
+
+```bash
+#!/bin/bash
+set -e
+
+# Create data directories
+mkdir -p $DATA_DIR/raw
+mkdir -p $DATA_DIR/processed
+
+# Start the application
+exec "$@"
+
+```
+
+## File: setup_uv.sh
+
+```bash
+#!/bin/bash
+# Install uv if not already installed
+if ! command -v uv &> /dev/null; then
+    echo "Installing uv package manager..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+
+# Create virtual environment
+uv venv
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Install dependencies
+uv pip install -e .
+
+# Install dev dependencies
+uv pip install -e ".[dev]"
+
+echo "Setup complete! Activate the environment with: source .venv/bin/activate"
+```
+
+## File: app/__init__.py
+
+```python
+
+```
+
+## File: app/main.py
+
+```python
+from fastapi import FastAPI
+from app.api.routes import router as api_router
+from app.core.data_processor import DataProcessor
+from app.core.sql_query_engine import SQLQueryEngine
+from app.utils.logging import setup_logging
+from fastapi.middleware.cors import CORSMiddleware
+from app.config.settings import AppConfig
+import os
+
+def create_app():
+    """Create and configure the FastAPI application."""
+    app = FastAPI(
+        title="Hospital Data Chatbot",
+        description="AI-powered analysis of hospital patient data",
+        version="0.1.0"
+    )
+    
+    # Set up logging
+    logger = setup_logging(log_to_file=True)
+    logger.info(f"Starting application in {AppConfig.get_environment_name()} environment")
+    
+    # Check if data file exists before attempting to load
+    data_file_path = os.path.join(AppConfig.DATA_DIR, 'raw', 'hospital_data.xlsx')
+    if os.path.exists(data_file_path):
+        # Initialize data processor and load data
+        data_processor = DataProcessor(auto_ingest_db=not AppConfig.is_production())
+        app.state.data_processor = data_processor
+        logger.info("Data processor initialized and data loaded")
+    else:
+        # Initialize data processor without loading data
+        logger.warning(f"Data file not found at {data_file_path}, initializing without data")
+        data_processor = DataProcessor(auto_load=False, auto_ingest_db=False)
+        app.state.data_processor = data_processor
+    
+    # Initialize SQL query engine
+    sql_query_engine = SQLQueryEngine()
+    app.state.sql_query_engine = sql_query_engine
+    logger.info("SQL Query Engine initialized")
+    
+    # Include API routes
+    app.include_router(api_router, prefix="/api")
+    
+    # Middleware for CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"] if not AppConfig.is_production() else ["https://your-production-domain.com"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Apply environment-specific configurations
+    if AppConfig.is_development():
+        logger.debug("Development-specific configuration applied")
+        
+        # Add development routes if in development environment
+        from app.api.dev_routes import router as dev_router
+        app.include_router(dev_router, prefix="/dev")
+        logger.debug("Development routes added")
+    else:
+        # Production & staging settings
+        logger.info("Production/Staging configuration applied")
+    
+    logger.info("FastAPI application configured and ready")
+    return app
+
+app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8080, reload=True)
+```
+
+## File: app/core/query_engine.py
+
+```python
+# app/core/query_engine.py
+import polars as pl
+from app.core.llm_connector import BedrockLLM
+
+class QueryEngine:
+    """Processes natural language queries on hospital data."""
+    
+    def __init__(self, patient_data, diagnosis_data):
+        self.patient_data = patient_data
+        self.diagnosis_data = diagnosis_data
+        self.llm = BedrockLLM()
+    
+    def process_query(self, query):
+        """
+        Process a user query and always route to the LLM.
+        For calculation-related queries, provide context with calculation hints.
+        """
+        # Prepare context with dataset information
+        context = self._prepare_context(query)
+        
+        # Add calculation capabilities information to the context
+        calculation_info = self._get_calculation_capabilities()
+        context += calculation_info
+        
+        # Send to LLM with enhanced context
+        llm_response = self.llm.query(query, context)
+        
+        return llm_response
+    
+    def _get_calculation_capabilities(self):
+        """Provide information about calculation capabilities for the LLM."""
+        return """
+        CALCULATION CAPABILITIES:
+        For any calculations, please use the following format to trigger our calculation API:
+        
+        [CALCULATE: dataset.operation(column_name)]
+        
+        Available datasets:
+        - patient_details: Contains patient records
+        - diagnosis_details: Contains diagnosis information related to patients
+        
+        Available operations:
+        - mean(column_name): Calculate the average of values in the column
+        - count(): Count the total number of records
+        - min(column_name): Find the minimum value
+        - max(column_name): Find the maximum value
+        - sum(column_name): Sum all values in the column
+        - median(column_name): Find the median value
+        - std(column_name): Calculate standard deviation
+        - count_unique(column_name): Count unique values
+        - count_by_patient(column_name): Count diagnoses grouped by patient
+        
+        Example usage:
+        - To calculate average stay duration: [CALCULATE: patient_details.mean(stay_duration)]
+        - To count patients: [CALCULATE: patient_details.count()]
+        - To count diagnoses per patient: [CALCULATE: diagnosis_details.count_by_patient(registry_id)]
+        
+        Please use these calculations when answering queries about statistics or numeric analysis.
+        """
+    
+    def _prepare_context(self, query):
+        """Prepare relevant data context based on the query."""
+        # Create initial context with data overview
+        context = "Hospital Data Overview:\n"
+        context += f"1. Patient Details: {self.patient_data.height} patients with {self.patient_data.width} attributes\n"
+        context += f"2. Diagnosis Details: {self.diagnosis_data.height} diagnoses with {self.diagnosis_data.width} attributes\n\n"
+        
+        # Explain the relationship between tables
+        context += "Relationship: Each patient (identified by registry_id) can have multiple diagnoses.\n\n"
+        
+        # Add specific details based on whether the query seems patient-focused or diagnosis-focused
+        if any(keyword in query.lower() for keyword in ["patient", "person", "individual", "admission", "discharge"]):
+            # Patient-focused query
+            context += self._get_patient_context(query)
+            context += "\n" + self._get_brief_diagnosis_context()
+        elif any(keyword in query.lower() for keyword in ["diagnosis", "condition", "disease", "treatment"]):
+            # Diagnosis-focused query
+            context += self._get_diagnosis_context(query)
+            context += "\n" + self._get_brief_patient_context()
+        else:
+            # General query - provide both contexts
+            context += self._get_patient_context(query, include_sample=True)
+            context += "\n" + self._get_diagnosis_context(query, include_sample=True)
+        
+        return context
+    
+    def _get_patient_context(self, query, include_sample=True):
+        """Get patient data context."""
+        context = "PATIENT DETAILS:\n"
+        
+        # Add column information
+        relevant_columns = self._identify_relevant_columns(query, self.patient_data)
+        context += "Available patient attributes:\n"
+        for col in relevant_columns:
+            if col in self.patient_data.columns:
+                dtype = self.patient_data.schema[col]
+                context += f"- {col} (Type: {dtype})\n"
+        
+        # Add sample data if requested
+        if include_sample:
+            sample_size = min(5, self.patient_data.height)
+            sample_df = self.patient_data.select(relevant_columns).slice(0, sample_size)
+            sample_data = sample_df.to_string()
+            context += f"\nSample patient data (first {sample_size} records):\n{sample_data}\n"
+        
+        return context
+    
+    def _get_diagnosis_context(self, query, include_sample=True):
+        """Get diagnosis data context."""
+        context = "DIAGNOSIS DETAILS:\n"
+        
+        # Add column information
+        relevant_columns = self._identify_relevant_columns(query, self.diagnosis_data)
+        context += "Available diagnosis attributes:\n"
+        for col in relevant_columns:
+            if col in self.diagnosis_data.columns:
+                dtype = self.diagnosis_data.schema[col]
+                context += f"- {col} (Type: {dtype})\n"
+        
+        # Add sample data if requested
+        if include_sample:
+            sample_size = min(5, self.diagnosis_data.height)
+            sample_df = self.diagnosis_data.select(relevant_columns).slice(0, sample_size)
+            sample_data = sample_df.to_string()
+            context += f"\nSample diagnosis data (first {sample_size} records):\n{sample_data}\n"
+        
+        return context
+    
+    def _get_brief_patient_context(self):
+        """Get brief context about patient data."""
+        key_columns = ["registry_id", "age", "gender"]
+        available_columns = [col for col in key_columns if col in self.patient_data.columns]
+        
+        return f"Patient data includes {', '.join(available_columns)} and other attributes."
+    
+    def _get_brief_diagnosis_context(self):
+        """Get brief context about diagnosis data."""
+        key_columns = ["registry_id", "diagnosis", "diagnosis_date"]
+        available_columns = [col for col in key_columns if col in self.diagnosis_data.columns]
+        
+        return f"Diagnosis data includes {', '.join(available_columns)} and other attributes."
+    
+    def _identify_relevant_columns(self, query, df):
+        """Identify columns that might be relevant to the query."""
+        query_terms = query.lower().split()
+        relevant_columns = []
+        
+        # Add columns that match query terms
+        for col in df.columns:
+            if any(term in col.lower() for term in query_terms):
+                relevant_columns.append(col)
+        
+        # Always include registry_id for joining
+        if "registry_id" in df.columns and "registry_id" not in relevant_columns:
+            relevant_columns.insert(0, "registry_id")
+        
+        # If not enough columns were found through direct matches, include important ones
+        if len(relevant_columns) < 3:
+            # For patient data, include common important columns
+            if "age" in df.columns and "age" not in relevant_columns:
+                relevant_columns.append("age")
+            if "gender" in df.columns and "gender" not in relevant_columns:
+                relevant_columns.append("gender")
+            if "diagnosis" in df.columns and "diagnosis" not in relevant_columns:
+                relevant_columns.append("diagnosis")
+        
+        # Include some columns even if we don't have many matches
+        if len(relevant_columns) < 3:
+            for col in df.columns[:5]:
+                if col not in relevant_columns:
+                    relevant_columns.append(col)
+        
+        # Limit to a reasonable number of columns
+        return relevant_columns[:8]
+```
+
+## File: app/core/data_processor.py
+
+```python
+# app/core/data_processor.py
+import os
+import re
+import polars as pl
+from pathlib import Path
+from datetime import datetime
+import concurrent.futures
+from typing import Dict, Tuple, Optional, List, Any
+
+from app.utils.aws import upload_to_s3
+from app.utils.db import get_db_connection, create_tables, insert_data
+from app.config.settings import AppConfig
+from app.utils.logging import get_logger
+
+
+class DataProcessor:
+    """
+    Enhanced data processor that handles loading, processing, and storing hospital data.
+    Features:
+    - Robust data loading from Excel with better error handling
+    - Data sanitization for removing special characters and unwanted spaces
+    - Efficient data type conversion and schema management
+    - Parallel processing capabilities
+    - Direct database ingestion
+    - Data validation and cleaning
+    """
+
+    logger = get_logger(__name__)
+    
+    def __init__(self, auto_load: bool = True, auto_ingest_db: bool = False, recreate_db_schema: bool = False):
+        """
+        Initialize the data processor.
+        
+        Args:
+            auto_load: Automatically load data during initialization
+            auto_ingest_db: Automatically ingest data into database after loading
+            recreate_db_schema: Drop and recreate database schema (development mode only)
+        """
+        self.patient_data = None
+        self.diagnosis_data = None
+        self.data_path = Path(AppConfig.DATA_DIR) / 'raw' / 'hospital_data.xlsx'
+        self.recreate_db_schema = recreate_db_schema
+        
+        # Safety check - only allow schema recreation in development environments
+        if self.recreate_db_schema and not AppConfig.is_development():
+            self.logger.warning("Schema recreation requested but not allowed in non-development environment")
+            self.recreate_db_schema = False
+            
+        if self.recreate_db_schema:
+            self.logger.warning("Database schema will be dropped and recreated! Use this only in development.")
+        
+        # Track data stats for monitoring
+        self.stats = {
+            "patient_records": 0,
+            "diagnosis_records": 0,
+            "load_timestamp": None,
+            "processing_time_sec": 0,
+            "data_quality": {},
+            "environment": AppConfig.get_environment_name(),
+            "sanitization_stats": {}  # New field to track sanitization changes
+        }
+        
+        self.logger.info(f"DataProcessor initialized in {AppConfig.get_environment_name()} environment")
+        
+        # In production, always load but don't auto-ingest to allow validation
+        if AppConfig.is_production():
+            self.logger.info("Production environment detected: Auto-ingest disabled for safety")
+            auto_ingest_db = False
+            self.recreate_db_schema = False
+        
+        if auto_load:
+            self.load_data()
+            
+        if auto_ingest_db and self.patient_data is not None and self.diagnosis_data is not None:
+            self.ingest_to_database()
+    
+    def load_data(self) -> Tuple[pl.DataFrame, pl.DataFrame]:
+        """
+        Load hospital data from source Excel file with improved error handling.
+        
+        Returns:
+            Tuple containing (patient_data, diagnosis_data)
+        """
+        start_time = datetime.now()
+        
+        # Validate data file exists
+        if not os.path.exists(self.data_path):
+            self.logger.error(f"Data file not found: {self.data_path}")
+            raise FileNotFoundError(f"Hospital data file not found at {self.data_path}")
+        
+        self.logger.info(f"Loading data from {self.data_path}")
+        
+        # Reset any previous data
+        self.patient_data = None
+        self.diagnosis_data = None
+        
+        try:
+            # First verify the Excel file is readable and has required sheets
+            self._verify_excel_file()
+            
+            # Load both sheets - with better error handling
+            try:
+                self.logger.info("Loading patient and diagnosis data")
+                # Try sequential loading instead of concurrent to avoid issues
+                self.patient_data = self._load_patient_data()
+                self.diagnosis_data = self._load_diagnosis_data()
+            except Exception as e:
+                self.logger.error(f"Error during data loading: {str(e)}", exc_info=True)
+                raise ValueError(f"Failed to load data: {str(e)}")
+            
+            # Validate that we have both datasets
+            if self.patient_data is None:
+                raise ValueError("Failed to load patient data")
+            if self.diagnosis_data is None:
+                raise ValueError("Failed to load diagnosis data")
+
+            # Apply sanitization to the data
+            self.logger.info("Starting data sanitization process")
+            
+            # Sanitize patient data
+            try:
+                patient_sanitize_stats, sanitized_patient_data = self._sanitize_dataframe(self.patient_data)
+                # Update with sanitized data
+                self.patient_data = sanitized_patient_data
+            except Exception as e:
+                # If unpacking fails, it means _sanitize_dataframe returned just stats
+                self.logger.warning(f"Patient data sanitization might have failed: {str(e)}")
+                patient_sanitize_stats = {"error": str(e)}
+            
+            # Sanitize diagnosis data
+            try:
+                diagnosis_sanitize_stats, sanitized_diagnosis_data = self._sanitize_dataframe(self.diagnosis_data)
+                # Update with sanitized data
+                self.diagnosis_data = sanitized_diagnosis_data
+            except Exception as e:
+                # If unpacking fails, it means _sanitize_dataframe returned just stats
+                self.logger.warning(f"Diagnosis data sanitization might have failed: {str(e)}")
+                diagnosis_sanitize_stats = {"error": str(e)}
+            
+            # Combine sanitization stats
+            self.stats["sanitization_stats"] = {
+                "patient_data": patient_sanitize_stats,
+                "diagnosis_data": diagnosis_sanitize_stats
+            }
+            
+            # Track stats
+            self.stats["patient_records"] = self.patient_data.height
+            self.stats["diagnosis_records"] = self.diagnosis_data.height
+            self.stats["load_timestamp"] = datetime.now()
+            self.stats["processing_time_sec"] = (datetime.now() - start_time).total_seconds()
+            
+            self.logger.info(f"Successfully loaded and sanitized {self.patient_data.height} patient records and "
+                            f"{self.diagnosis_data.height} diagnosis records")
+            
+            # Run data quality checks
+            self._validate_data_integrity()
+            
+            return self.patient_data, self.diagnosis_data
+            
+        except Exception as e:
+            self.logger.error(f"Failed to load data: {str(e)}", exc_info=True)
+            raise ValueError(f"Failed to load data: {str(e)}")
+
+    def _verify_excel_file(self):
+        """
+        Verify that the Excel file exists and contains the required sheets.
+        Raises appropriate exceptions if verification fails.
+        """
+        import openpyxl
+        
+        try:
+            self.logger.info(f"Verifying Excel file at {self.data_path}")
+            
+            # Try to open the Excel file to check if it's valid
+            workbook = openpyxl.load_workbook(self.data_path, read_only=True)
+            
+            # Check if the required sheets exist
+            sheet_names = workbook.sheetnames
+            self.logger.debug(f"Excel file contains sheets: {sheet_names}")
+            
+            if "Patient Details" not in sheet_names:
+                raise ValueError("Excel file missing required sheet 'Patient Details'")
+            
+            if "Diagnosis Details" not in sheet_names:
+                raise ValueError("Excel file missing required sheet 'Diagnosis Details'")
+                
+            # Close the workbook
+            workbook.close()
+            
+            self.logger.info("Excel file verification successful")
+        except Exception as e:
+            self.logger.error(f"Excel file verification failed: {str(e)}", exc_info=True)
+            raise ValueError(f"Excel file verification failed: {str(e)}")
+
+    def _load_patient_data(self) -> pl.DataFrame:
+        """
+        Load patient data from Excel with enhanced error handling.
+        
+        Returns:
+            Patient data as a Polars DataFrame with standardized column names
+        """
+        try:
+            # Load raw data directly with read_excel
+            self.logger.info(f"Loading patient data from {self.data_path}, sheet 'Patient Details'")
+            
+            # Try loading with polars
+            try:
+                df = pl.read_excel(self.data_path, sheet_name="Patient Details")
+            except Exception as polars_error:
+                # If polars fails, try with pandas as a fallback
+                self.logger.warning(f"Polars read_excel failed: {str(polars_error)}. Trying pandas fallback.")
+                import pandas as pd
+                
+                # Load with pandas
+                pandas_df = pd.read_excel(self.data_path, sheet_name="Patient Details")
+                
+                # Convert to polars
+                df = pl.from_pandas(pandas_df)
+                self.logger.info("Successfully loaded with pandas fallback")
+            
+            # Verify we have data
+            if df is None or df.height == 0 or df.width == 0:
+                raise ValueError(f"No data found in Patient Details sheet (rows: {df.height if df is not None else 'None'}, cols: {df.width if df is not None else 'None'})")
+            
+            # Convert column names to snake_case
+            df = self._convert_column_names_to_snake_case(df)
+            self.logger.debug(f"Loaded patient data with {df.height} rows and {df.width} columns")
+            
+            return df
+            
+        except Exception as e:
+            self.logger.error(f"Error loading patient data: {str(e)}", exc_info=True)
+            raise
+
+    def _load_diagnosis_data(self) -> pl.DataFrame:
+        """
+        Load diagnosis data from Excel with enhanced error handling.
+        
+        Returns:
+            Diagnosis data as a Polars DataFrame with standardized column names
+        """
+        try:
+            # Load raw data directly with read_excel
+            self.logger.info(f"Loading diagnosis data from {self.data_path}, sheet 'Diagnosis Details'")
+            
+            # Try loading with polars
+            try:
+                df = pl.read_excel(self.data_path, sheet_name="Diagnosis Details")
+            except Exception as polars_error:
+                # If polars fails, try with pandas as a fallback
+                self.logger.warning(f"Polars read_excel failed: {str(polars_error)}. Trying pandas fallback.")
+                import pandas as pd
+                
+                # Load with pandas
+                pandas_df = pd.read_excel(self.data_path, sheet_name="Diagnosis Details")
+                
+                # Convert to polars
+                df = pl.from_pandas(pandas_df)
+                self.logger.info("Successfully loaded with pandas fallback")
+            
+            # Verify we have data
+            if df is None or df.height == 0 or df.width == 0:
+                raise ValueError(f"No data found in Diagnosis Details sheet (rows: {df.height if df is not None else 'None'}, cols: {df.width if df is not None else 'None'})")
+            
+            # Convert column names to snake_case
+            df = self._convert_column_names_to_snake_case(df)
+            self.logger.debug(f"Loaded diagnosis data with {df.height} rows and {df.width} columns")
+            
+            return df
+            
+        except Exception as e:
+            self.logger.error(f"Error loading diagnosis data: {str(e)}", exc_info=True)
+            raise
+    
+    def _sanitize_dataframe(self, df: pl.DataFrame) -> Dict[str, Any]:
+        """
+        Sanitize DataFrame by removing special characters and unwanted spaces from string columns.
+        
+        Args:
+            df: DataFrame to sanitize
+                
+        Returns:
+            Dictionary with sanitization statistics
+        """
+        if df is None:
+            return {"error": "No data to sanitize"}
+        
+        sanitize_stats = {
+            "original_rows": df.height,
+            "columns_sanitized": [],
+            "cells_modified": 0,
+            "sanitized_rows": 0
+        }
+        
+        self.logger.info(f"Sanitizing DataFrame with {df.height} rows and {df.width} columns")
+        
+        # Instead of cloning the DataFrame, create a copy safely by converting to dict and back
+        # This avoids potential issues with the clone() method
+        try:
+            # Get string columns to sanitize
+            string_columns = [col for col in df.columns if df.schema[col] == pl.Utf8]
+            sanitize_stats["total_string_columns"] = len(string_columns)
+            
+            # Only proceed with sanitization if we have string columns
+            if not string_columns:
+                self.logger.info("No string columns to sanitize")
+                return sanitize_stats
+            
+            # Track modified rows
+            modified_rows = set()
+            
+            # Create a new DataFrame by modifying each column as needed
+            # Start with all columns from the original DataFrame
+            new_df_columns = {}
+            for col in df.columns:
+                if col in string_columns:
+                    # For string columns, we'll apply sanitization
+                    original_values = df[col].to_list()
+                    sanitized_values = []
+                    was_modified = False
+                    modified_cells_count = 0
+                    
+                    # Process each value in the column
+                    for row_idx, value in enumerate(original_values):
+                        sanitized_value = self._sanitize_string_value(col, value)
+                        sanitized_values.append(sanitized_value)
+                        
+                        # Check if the value was modified
+                        if value != sanitized_value:
+                            modified_cells_count += 1
+                            modified_rows.add(row_idx)
+                            was_modified = True
+                    
+                    # If the column was modified, update stats
+                    if was_modified:
+                        sanitize_stats["columns_sanitized"].append(col)
+                        sanitize_stats["cells_modified"] += modified_cells_count
+                        self.logger.debug(f"Sanitized column '{col}': {modified_cells_count} cells modified")
+                        
+                        # Log sample modifications (up to 5)
+                        examples = []
+                        for i, (orig, sanitized) in enumerate(zip(original_values, sanitized_values)):
+                            if orig != sanitized and len(examples) < 5:
+                                examples.append(f"Row {i}: '{orig}' -> '{sanitized}'")
+                        
+                        if examples:
+                            self.logger.debug("Examples of modifications: " + ", ".join(examples))
+                    
+                    # Add the column (original or sanitized) to the new DataFrame
+                    new_df_columns[col] = pl.Series(name=col, values=sanitized_values)
+                else:
+                    # For non-string columns, keep the original values
+                    new_df_columns[col] = df[col]
+            
+            # Create a new DataFrame from the columns
+            sanitized_df = pl.DataFrame(new_df_columns)
+            
+            # Update stats
+            sanitize_stats["sanitized_rows"] = len(modified_rows)
+            
+            self.logger.info(f"Sanitization complete: {len(sanitize_stats['columns_sanitized'])}/{sanitize_stats['total_string_columns']} columns modified, "
+                            f"{sanitize_stats['cells_modified']} cells, {sanitize_stats['sanitized_rows']} rows")
+            
+            # The sanitized DataFrame is now ready for further use
+            # Replace the input df with our sanitized DataFrame
+            # We can't directly modify the input df because it's passed by value
+            # Instead, we return the sanitized DataFrame which will be assigned to 
+            # self.patient_data or self.diagnosis_data in the calling method
+            
+            return sanitize_stats, sanitized_df
+            
+        except Exception as e:
+            self.logger.error(f"Error during DataFrame sanitization: {str(e)}", exc_info=True)
+            # Return the original DataFrame if sanitization fails
+            return {"error": str(e), "exception": str(e)}, df
+
+    def _sanitize_string_value(self, column_name, value):
+        """
+        Sanitize a string value based on the column type.
+        
+        Args:
+            column_name: Name of the column (used to determine sanitization rules)
+            value: The string value to sanitize
+            
+        Returns:
+            Sanitized string value
+        """
+        # Skip None values and non-string values
+        if value is None or not isinstance(value, str):
+            return value
+        
+        # Original value for comparison
+        original = value
+        
+        # Trim leading/trailing whitespace
+        value = value.strip()
+        
+        # Replace multiple spaces with single space
+        value = re.sub(r'\s+', ' ', value)
+        
+        # Remove control characters
+        value = re.sub(r'[\x00-\x1F\x7F]', '', value)
+        
+        # Special character handling depends on column type 
+        if column_name.lower() in ('registry_id', 'patient_id', 'id'):
+            # For ID columns: remove everything except alphanumeric chars and common ID separators
+            value = re.sub(r'[^\w\-\.]', '', value)
+        elif 'name' in column_name.lower():
+            # For name columns: allow letters, spaces, hyphens, and apostrophes
+            value = re.sub(r'[^\w\s\-\']', '', value)
+        elif 'diagnosis' in column_name.lower():
+            # For diagnosis: allow more punctuation for medical terms
+            value = re.sub(r'[^\w\s\-\.,:/()]', '', value)
+        else:
+            # For other string columns: remove special chars but keep basic punctuation
+            value = re.sub(r'[^\w\s\-\.,:/()]', '', value)
+        
+        return value
+    
+    def _convert_column_names_to_snake_case(self, df):
+        """
+        Convert column names to snake_case and validate no duplicates are created.
+        Handles decimal numbers in column names and removes leading numbers.
+        
+        Args:
+            df: Polars DataFrame with original column names
+            
+        Returns:
+            DataFrame with sanitized snake_case column names
+        """
+        # Create a mapping of original names to snake_case names
+        column_mapping = {}
+        
+        for col in df.columns:
+            # Clean the column name to keep only alphanumeric characters, spaces, and periods
+            clean_col = ''.join(c if c.isalnum() or c.isspace() or c == '.' else ' ' for c in col)
+            
+            # 1. Replace spaces and hyphens with underscores
+            snake_col = clean_col.replace(' ', '_').replace('-', '_')
+            
+            # 2. Handle camelCase by inserting underscore before capital letters
+            snake_col = re.sub(r'(?<=[a-z0-9])(?=[A-Z])', '_', snake_col)
+            
+            # 3. Convert to lowercase and remove any double underscores
+            snake_col = snake_col.lower().replace('__', '_').strip('_')
+            
+            # 4. Remove decimal number prefixes with any number of decimal points 
+            # (e.g., "5.1.2_retriage" -> "retriage", "5.1_retriage" -> "retriage")
+            # This pattern removes floating point numbers at the beginning of column names
+            snake_col = re.sub(r'^(\d+(\.\d+)+)[\._]*', '', snake_col)
+            
+            # 5. Remove any remaining leading digits (e.g. "1_hospital_id" -> "hospital_id")
+            snake_col = re.sub(r'^[0-9]+[\._]*', '', snake_col)
+            
+            # 6. If removing digits results in an empty string or just underscores, use "column_X"
+            if not snake_col or snake_col.strip('_') == '':
+                snake_col = f"column_{df.columns.index(col)}"
+            
+            column_mapping[col] = snake_col
+        
+        # Check for duplicate column names after conversion
+        snake_case_names = list(column_mapping.values())
+        duplicate_names = set([name for name in snake_case_names if snake_case_names.count(name) > 1])
+        
+        # If duplicates found, modify the column names to make them unique
+        if duplicate_names:
+            self.logger.warning(f"Found duplicate column names after snake_case conversion: {duplicate_names}")
+            
+            # Track columns that have been processed to handle duplicates
+            processed_names = {}
+            
+            # Update mapping to make duplicate column names unique
+            for original_col, snake_col in list(column_mapping.items()):
+                if snake_col in duplicate_names:
+                    # If this name was already processed, add a numeric suffix
+                    if snake_col in processed_names:
+                        processed_names[snake_col] += 1
+                        unique_name = f"{snake_col}_{processed_names[snake_col]}"
+                        column_mapping[original_col] = unique_name
+                        self.logger.info(f"Renamed duplicate column '{original_col}' to '{unique_name}'")
+                    else:
+                        # First occurrence of this duplicate name
+                        processed_names[snake_col] = 1
+        
+        # Validate final mapping has no duplicates
+        if len(set(column_mapping.values())) != len(column_mapping):
+            remaining_duplicates = [name for name, count in 
+                                {name: list(column_mapping.values()).count(name) for name in set(column_mapping.values())}.items() 
+                                if count > 1]
+            raise ValueError(f"Failed to resolve duplicate column names: {remaining_duplicates}. Review your data schema.")
+        
+        # Log the column name mapping for reference
+        for original, converted in column_mapping.items():
+            if original != converted:
+                self.logger.debug(f"Column renamed: '{original}' -> '{converted}'")
+        
+        # Rename columns
+        return df.rename(column_mapping)
+    
+    def _preprocess_patient_data(self, df):
+        """
+        Minimal preprocessing for patient data, keeping data as-is.
+        
+        Args:
+            df: Patient data DataFrame
+                
+        Returns:
+            Original DataFrame with minimal changes
+        """
+        # Handle null values if needed - can be removed if you want to keep nulls as is
+        df = df.fill_null(None)
+        
+        self.logger.info("Minimal patient data preprocessing complete - keeping data as-is")
+        
+        return df
+
+    def _preprocess_diagnosis_data(self, df):
+        """
+        Minimal preprocessing for diagnosis data, keeping data as-is.
+        
+        Args:
+            df: Diagnosis data DataFrame
+                
+        Returns:
+            Original DataFrame with minimal changes
+        """
+        # Handle null values if needed - can be removed if you want to keep nulls as is
+        df = df.fill_null(None)
+        
+        self.logger.info("Minimal diagnosis data preprocessing complete - keeping data as-is")
+        
+        return df
+    
+    def _validate_data_integrity(self) -> Dict[str, Any]:
+        """
+        Perform data validation checks to ensure data integrity.
+        All comparisons are performed as strings to avoid type mismatches.
+        
+        Returns:
+            Dictionary with validation results
+        """
+        validation_results = {}
+        
+        if self.patient_data is None or self.diagnosis_data is None:
+            self.logger.error("Cannot validate data integrity - data not loaded")
+            return {"error": "Data not loaded"}
+        
+        # Check for patients without registry_id
+        if 'registry_id' in self.patient_data.columns:
+            missing_ids = self.patient_data.filter(
+                pl.col('registry_id').is_null() | 
+                (pl.col('registry_id').cast(pl.Utf8) == "") |
+                (pl.col('registry_id').cast(pl.Utf8) == "null") |
+                (pl.col('registry_id').cast(pl.Utf8) == "nan")
+            ).height
+            
+            validation_results['missing_patient_ids'] = missing_ids
+            if missing_ids > 0:
+                self.logger.warning(f"Found {missing_ids} patients without registry_id")
+        
+        # Check for orphaned diagnoses (no matching patient)
+        if ('registry_id' in self.patient_data.columns and 
+            'registry_id' in self.diagnosis_data.columns):
+            
+            # Get all patient IDs - convert to strings for consistent comparison
+            try:
+                # Use a safer method to collect patient IDs as strings
+                patient_id_series = self.patient_data.select(
+                    pl.col('registry_id').cast(pl.Utf8).alias('registry_id_str')
+                ).to_series()
+                
+                # Filter out None/null/empty values
+                patient_ids = set()
+                for id_val in patient_id_series:
+                    if id_val is not None and str(id_val).strip() not in ("", "null", "nan"):
+                        patient_ids.add(str(id_val).strip())
+                
+                self.logger.debug(f"Found {len(patient_ids)} unique patient IDs for validation")
+                
+                # First convert diagnosis registry_ids to strings, then check against patient_ids
+                orphaned_diagnoses = self.diagnosis_data.filter(
+                    ~pl.col('registry_id').cast(pl.Utf8).is_in(list(patient_ids))
+                ).height
+                
+                validation_results['orphaned_diagnoses'] = orphaned_diagnoses
+                if orphaned_diagnoses > 0:
+                    self.logger.warning(f"Found {orphaned_diagnoses} diagnoses without a matching patient")
+                    
+                    # Log some examples of orphaned diagnoses for debugging
+                    sample_orphaned = self.diagnosis_data.filter(
+                        ~pl.col('registry_id').cast(pl.Utf8).is_in(list(patient_ids))
+                    ).head(5)
+                    
+                    for i, row in enumerate(sample_orphaned.to_dicts()):
+                        self.logger.debug(f"Orphaned diagnosis #{i+1}: registry_id={row['registry_id']} "
+                                        f"(type: {type(row['registry_id']).__name__})")
+                        
+            except Exception as e:
+                self.logger.error(f"Error validating orphaned diagnoses: {str(e)}", exc_info=True)
+                validation_results['orphaned_diagnoses_error'] = str(e)
+        
+        # Check for duplicate registry_ids in patient data
+        if 'registry_id' in self.patient_data.columns:
+            try:
+                # Work with string-casted registry_ids for consistent comparison
+                # Add exception handling in case of null values or other issues
+                duplicate_ids = (
+                    self.patient_data.with_column(
+                        pl.col('registry_id').cast(pl.Utf8).alias('registry_id_str')
+                    )
+                    .group_by('registry_id_str')
+                    .agg(pl.count().alias('count'))
+                    .filter(pl.col('count') > 1)
+                )
+                
+                # Get count of duplicate IDs
+                duplicate_count = duplicate_ids.height
+                
+                validation_results['duplicate_patient_ids'] = duplicate_count
+                if duplicate_count > 0:
+                    self.logger.warning(f"Found {duplicate_count} duplicate patient registry_ids")
+                    
+                    # Log the duplicate IDs for debugging
+                    for row in duplicate_ids.to_dicts():
+                        self.logger.debug(f"Duplicate patient ID: {row['registry_id_str']} appears {row['count']} times")
+                    
+            except Exception as e:
+                self.logger.error(f"Error checking for duplicate patient IDs: {str(e)}", exc_info=True)
+                validation_results['duplicate_check_error'] = str(e)
+        
+        # Add additional validation: Check for invalid data types
+        validation_results['type_validation'] = self._validate_data_types()
+        
+        # Update stats with validation results
+        self.stats['data_quality'] = validation_results
+        
+        return validation_results
+
+    def _validate_data_types(self) -> Dict[str, Any]:
+        """
+        Validate data types in both patient and diagnosis data.
+        
+        Returns:
+            Dictionary with type validation results
+        """
+        validation_results = {
+            'patient_data': {},
+            'diagnosis_data': {}
+        }
+        
+        # Check patient data types
+        if self.patient_data is not None:
+            patient_issues = {}
+            
+            # Age should be numeric or castable to numeric
+            if 'age' in self.patient_data.columns:
+                try:
+                    non_numeric_ages = self.patient_data.filter(
+                        pl.col('age').is_not_null() & 
+                        ~pl.col('age').cast(pl.Utf8).str.strip().cast(pl.Float64, strict=False).is_not_null()
+                    ).height
+                    
+                    if non_numeric_ages > 0:
+                        patient_issues['non_numeric_ages'] = non_numeric_ages
+                        self.logger.warning(f"Found {non_numeric_ages} patient records with non-numeric age values")
+                except Exception as e:
+                    self.logger.error(f"Error validating age data types: {str(e)}")
+                    patient_issues['age_validation_error'] = str(e)
+            
+            # Gender should have consistent values
+            if 'gender' in self.patient_data.columns:
+                try:
+                    # Get all unique gender values
+                    gender_values = self.patient_data.select(
+                        pl.col('gender').cast(pl.Utf8).alias('gender_str')
+                    ).unique().to_series().to_list()
+                    
+                    # Filter out None values
+                    gender_values = [g for g in gender_values if g is not None]
+                    
+                    # Check if there are unexpected gender values
+                    standard_genders = {'male', 'female', 'm', 'f', 'man', 'woman'}
+                    non_standard = [g for g in gender_values if g.lower() not in standard_genders]
+                    
+                    if non_standard:
+                        patient_issues['non_standard_genders'] = non_standard
+                        self.logger.info(f"Found non-standard gender values: {non_standard}")
+                except Exception as e:
+                    self.logger.error(f"Error validating gender values: {str(e)}")
+                    patient_issues['gender_validation_error'] = str(e)
+            
+            validation_results['patient_data'] = patient_issues
+        
+        # Check diagnosis data types
+        if self.diagnosis_data is not None:
+            diagnosis_issues = {}
+            
+            # Check date fields if present
+            date_columns = [col for col in self.diagnosis_data.columns if 'date' in col.lower()]
+            for date_col in date_columns:
+                try:
+                    # Try to detect non-date values
+                    non_date_count = self.diagnosis_data.filter(
+                        pl.col(date_col).is_not_null() & 
+                        ~pl.col(date_col).is_datelike()
+                    ).height
+                    
+                    if non_date_count > 0:
+                        diagnosis_issues[f'non_date_{date_col}'] = non_date_count
+                        self.logger.warning(f"Found {non_date_count} records with non-date values in {date_col}")
+                except Exception as e:
+                    self.logger.error(f"Error validating date column {date_col}: {str(e)}")
+                    diagnosis_issues[f'{date_col}_validation_error'] = str(e)
+            
+            validation_results['diagnosis_data'] = diagnosis_issues
+        
+        return validation_results
+    
+    def ingest_to_database(self) -> Dict[str, Any]:
+        """
+        Ingest processed data into the database with enhanced validation.
+        
+        Returns:
+            Dictionary with ingestion results including validation statistics
+        """
+        if self.patient_data is None or self.diagnosis_data is None:
+            raise ValueError("No data available for ingestion - load data first")
+        
+        try:
+            self.logger.info("Starting database ingestion process with validation")
+            self.logger.debug(f"Connection details: host={AppConfig.DB_HOST}, port={AppConfig.DB_PORT}, db={AppConfig.DB_NAME}")
+            
+            # Log data shape before ingestion
+            self.logger.debug(f"Patient data shape: {self.patient_data.shape}, columns: {self.patient_data.columns}")
+            self.logger.debug(f"Diagnosis data shape: {self.diagnosis_data.shape}, columns: {self.diagnosis_data.columns}")
+            
+            conn = get_db_connection()
+            
+            try:
+                # Create database tables if they don't exist
+                self.logger.info("Creating database tables if they don't exist")
+                create_tables(conn, self.patient_data, self.diagnosis_data, drop_if_exists=getattr(self, 'recreate_db_schema', False))
+                
+                # Insert patient data first (for referential integrity)
+                self.logger.info(f"Validating and inserting {self.patient_data.height} patient records")
+                patient_stats = insert_data(conn, "patient_details", self.patient_data)
+                
+                # Insert diagnosis data linked to patients
+                self.logger.info(f"Validating and inserting {self.diagnosis_data.height} diagnosis records")
+                diagnosis_stats = insert_data(conn, "diagnosis_details", self.diagnosis_data)
+                
+                # Commit transaction
+                conn.commit()
+                self.logger.info("Transaction committed successfully")
+                
+                # Compile and log comprehensive statistics
+                success_rate_patients = (patient_stats["valid_records"] / patient_stats["total_records"]) * 100 if patient_stats["total_records"] > 0 else 0
+                success_rate_diagnosis = (diagnosis_stats["valid_records"] / diagnosis_stats["total_records"]) * 100 if diagnosis_stats["total_records"] > 0 else 0
+                
+                self.logger.info(f"Patient data: {patient_stats['valid_records']} inserted, {patient_stats['rejected_records']} rejected ({success_rate_patients:.1f}% success)")
+                self.logger.info(f"Diagnosis data: {diagnosis_stats['valid_records']} inserted, {diagnosis_stats['rejected_records']} rejected ({success_rate_diagnosis:.1f}% success)")
+                
+                # If there were rejected records, log the main reasons
+                if patient_stats["rejected_records"] > 0:
+                    self.logger.warning("Main reasons for patient data rejection:")
+                    for reason, count in sorted(patient_stats.get("error_reasons", {}).items(), key=lambda x: x[1], reverse=True)[:3]:
+                        self.logger.warning(f" - {reason}: {count} records")
+                
+                if diagnosis_stats["rejected_records"] > 0:
+                    self.logger.warning("Main reasons for diagnosis data rejection:")
+                    for reason, count in sorted(diagnosis_stats.get("error_reasons", {}).items(), key=lambda x: x[1], reverse=True)[:3]:
+                        self.logger.warning(f" - {reason}: {count} records")
+                
+                # Return insertion results
+                result = {
+                    "status": "success",
+                    "patient_records": {
+                        "total": patient_stats["total_records"],
+                        "inserted": patient_stats["valid_records"],
+                        "rejected": patient_stats["rejected_records"],
+                        "success_rate": f"{success_rate_patients:.1f}%"
+                    },
+                    "diagnosis_records": {
+                        "total": diagnosis_stats["total_records"],
+                        "inserted": diagnosis_stats["valid_records"],
+                        "rejected": diagnosis_stats["rejected_records"],
+                        "success_rate": f"{success_rate_diagnosis:.1f}%"
+                    },
+                    "validation_details": {
+                        "patient_errors": patient_stats.get("error_reasons", {}),
+                        "diagnosis_errors": diagnosis_stats.get("error_reasons", {})
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                    "schema_recreated": getattr(self, 'recreate_db_schema', False)
+                }
+                
+                # Update stats
+                self.stats["db_ingestion"] = result
+                
+                self.logger.info(f"Database ingestion complete with validation")
+                return result
+                
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Database ingestion failed: {str(e)}", exc_info=True)
+                raise
+            finally:
+                conn.close()
+                self.logger.debug("Database connection closed")
+                
+        except Exception as e:
+            error_msg = f"Failed to ingest data to database: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            return {
+                "status": "error",
+                "message": error_msg,
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def save_processed_data(self) -> Dict[str, str]:
+        """
+        Save processed data to files or S3.
+        
+        Returns:
+            Dictionary with file paths
+        """
+        if self.patient_data is None or self.diagnosis_data is None:
+            raise ValueError("No processed data available to save")
+        
+        try:
+            # Create directories if they don't exist
+            if not AppConfig.USE_S3:
+                os.makedirs(os.path.join(AppConfig.DATA_DIR, 'processed'), exist_ok=True)
+            
+            if AppConfig.USE_S3:
+                # Save both dataframes to S3
+                self.logger.info(f"Saving processed data to S3 bucket {AppConfig.S3_BUCKET}")
+                
+                patient_data_path = upload_to_s3(
+                    self.patient_data,
+                    AppConfig.S3_BUCKET,
+                    'processed/patient_data.csv'
+                )
+                
+                diagnosis_data_path = upload_to_s3(
+                    self.diagnosis_data,
+                    AppConfig.S3_BUCKET,
+                    'processed/diagnosis_data.csv'
+                )
+            else:
+                # Save to local CSV files
+                patient_data_path = os.path.join(AppConfig.DATA_DIR, 'processed', 'patient_data.csv')
+                diagnosis_data_path = os.path.join(AppConfig.DATA_DIR, 'processed', 'diagnosis_data.csv')
+                
+                self.logger.info(f"Saving processed data to local files: {patient_data_path}, {diagnosis_data_path}")
+                
+                self.patient_data.write_csv(patient_data_path)
+                self.diagnosis_data.write_csv(diagnosis_data_path)
+            
+            self.logger.info("Data saved successfully")
+            
+            return {
+                'patient_data': patient_data_path,
+                'diagnosis_data': diagnosis_data_path
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to save processed data: {str(e)}", exc_info=True)
+            raise
+    
+    def get_data_stats(self) -> Dict[str, Any]:
+        """
+        Get comprehensive statistics about the loaded datasets.
+        
+        Returns:
+            Dictionary with dataset statistics
+        """
+        if self.patient_data is None or self.diagnosis_data is None:
+            return {"error": "No data loaded"}
+        
+        try:
+            # Generate descriptive statistics for patient data
+            patient_stats = {
+                "record_count": self.patient_data.height,
+                "column_count": self.patient_data.width,
+                "columns": self.patient_data.columns,
+            }
+            
+            # Add more detailed statistics for numeric columns
+            if 'age' in self.patient_data.columns:
+                try:
+                    age_stats = self.patient_data.select([
+                        pl.col('age').mean().alias('avg_age'),
+                        pl.col('age').min().alias('min_age'),
+                        pl.col('age').max().alias('max_age'),
+                        pl.col('age').median().alias('median_age')
+                    ]).to_dicts()[0]
+                    patient_stats['age_stats'] = age_stats
+                except:
+                    pass
+            
+            if 'stay_duration' in self.patient_data.columns:
+                try:
+                    stay_stats = self.patient_data.select([
+                        pl.col('stay_duration').mean().alias('avg_stay'),
+                        pl.col('stay_duration').min().alias('min_stay'),
+                        pl.col('stay_duration').max().alias('max_stay'),
+                        pl.col('stay_duration').median().alias('median_stay')
+                    ]).to_dicts()[0]
+                    patient_stats['stay_stats'] = stay_stats
+                except:
+                    pass
+            
+            # Gender distribution if available
+            if 'gender' in self.patient_data.columns:
+                try:
+                    gender_counts = (
+                        self.patient_data
+                        .group_by('gender')
+                        .agg(pl.count().alias('count'))
+                        .sort('count', descending=True)
+                        .to_dicts()
+                    )
+                    patient_stats['gender_distribution'] = gender_counts
+                except:
+                    pass
+            
+            # Diagnosis data statistics
+            diagnosis_stats = {
+                "record_count": self.diagnosis_data.height,
+                "column_count": self.diagnosis_data.width,
+                "columns": self.diagnosis_data.columns,
+            }
+            
+            # Top diagnoses if available
+            if 'diagnosis' in self.diagnosis_data.columns:
+                try:
+                    top_diagnoses = (
+                        self.diagnosis_data
+                        .group_by('diagnosis')
+                        .agg(pl.count().alias('count'))
+                        .sort('count', descending=True)
+                        .head(10)
+                        .to_dicts()
+                    )
+                    diagnosis_stats['top_diagnoses'] = top_diagnoses
+                except:
+                    pass
+            
+            # Diagnoses per patient
+            if 'registry_id' in self.diagnosis_data.columns:
+                try:
+                    diagnoses_per_patient = (
+                        self.diagnosis_data
+                        .group_by('registry_id')
+                        .agg(pl.count().alias('diagnosis_count'))
+                    )
+                    
+                    diag_stats = diagnoses_per_patient.select([
+                        pl.col('diagnosis_count').mean().alias('avg_diagnoses_per_patient'),
+                        pl.col('diagnosis_count').min().alias('min_diagnoses_per_patient'),
+                        pl.col('diagnosis_count').max().alias('max_diagnoses_per_patient'),
+                        pl.col('diagnosis_count').median().alias('median_diagnoses_per_patient')
+                    ]).to_dicts()[0]
+                    
+                    diagnosis_stats['diagnoses_per_patient'] = diag_stats
+                except:
+                    pass
+            
+            # Add sanitization stats to the output
+            sanitization_stats = self.stats.get("sanitization_stats", {})
+            
+            # Combined stats
+            stats = {
+                "patient_data": patient_stats,
+                "diagnosis_data": diagnosis_stats,
+                "processing_stats": {
+                    "load_timestamp": self.stats.get("load_timestamp"),
+                    "processing_time_sec": self.stats.get("processing_time_sec"),
+                },
+                "data_quality": self.stats.get("data_quality", {}),
+                "sanitization": {
+                    "patient_data": sanitization_stats.get("patient_data", {}),
+                    "diagnosis_data": sanitization_stats.get("diagnosis_data", {}),
+                    "summary": {
+                        "total_columns_sanitized": len(sanitization_stats.get("patient_data", {}).get("columns_sanitized", [])) + 
+                                                 len(sanitization_stats.get("diagnosis_data", {}).get("columns_sanitized", [])),
+                        "total_cells_modified": sanitization_stats.get("patient_data", {}).get("cells_modified", 0) + 
+                                               sanitization_stats.get("diagnosis_data", {}).get("cells_modified", 0),
+                        "total_rows_affected": sanitization_stats.get("patient_data", {}).get("sanitized_rows", 0) + 
+                                              sanitization_stats.get("diagnosis_data", {}).get("sanitized_rows", 0)
+                    }
+                }
+            }
+            
+            return stats
+            
+        except Exception as e:
+            self.logger.error(f"Error generating data statistics: {str(e)}", exc_info=True)
+            return {
+                "error": f"Failed to generate statistics: {str(e)}",
+                "patient_record_count": self.patient_data.height if self.patient_data is not None else 0,
+                "diagnosis_record_count": self.diagnosis_data.height if self.diagnosis_data is not None else 0
+            }
+```
+
+## File: app/core/db_importer.py
+
+```python
+# app/core/db_importer.py
+from app.utils.db import get_db_connection, create_tables, insert_patient_data, insert_metadata
+
+class DbImporter:
+    """Handles importing data to Aurora PostgreSQL."""
+    
+    def __init__(self):
+        self.conn = get_db_connection()
+        
+    def setup_database(self):
+        """Set up database tables."""
+        create_tables(self.conn)
+    
+    def import_data(self, patient_data, metadata):
+        """Import both patient data and metadata into the database."""
+        # Create tables if they don't exist
+        self.setup_database()
+        
+        # Import data
+        patient_count = insert_patient_data(self.conn, patient_data)
+        metadata_count = insert_metadata(self.conn, metadata)
+        
+        return {
+            'patient_records': patient_count,
+            'metadata_records': metadata_count
+        }
+        
+    def close(self):
+        """Close the database connection."""
+        if self.conn:
+            self.conn.close()
+```
+
+## File: app/core/ollama_connector.py
+
+```python
+# app/core/ollama_connector.py
+import requests
+import json
+import re
+from app.config.settings import AppConfig
+from app.utils.logging import get_logger
+
+class OllamaLLM:
+    """Interface for Ollama LLM services."""
+    
+    def __init__(self):
+        self.logger = get_logger(__name__)
+        self.model = AppConfig.OLLAMA_MODEL
+        self.base_url = AppConfig.OLLAMA_HOST
+        self.logger.info(f"Initialized Ollama connector with model: {self.model} at {self.base_url}")
+    
+    def query(self, user_query, context, max_tokens=1000):
+        """
+        Send a query to the LLM with context information.
+        
+        Args:
+            user_query: User's question
+            context: Context information (schema, etc.)
+            max_tokens: Maximum tokens to generate
+            
+        Returns:
+            LLM response text
+        """
+        prompt = self._format_prompt(user_query, context)
+        
+        try:
+            # Format the request for Ollama API
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,  # Disable streaming to get a single response
+                "options": {
+                    "temperature": 0.1,
+                    "top_p": 0.95,
+                    "num_predict": max_tokens
+                }
+            }
+            
+            self.logger.debug(f"Sending request to Ollama")
+            
+            # Send request to Ollama
+            response = requests.post(
+                f"{self.base_url}/api/generate",
+                json=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            
+            # Check if request was successful
+            response.raise_for_status()
+            
+            # Get the raw response for debugging
+            raw_response = response.text
+            self.logger.debug(f"Raw response from Ollama: {raw_response[:100]}...")
+            
+            # Parse the JSON response
+            try:
+                result = json.loads(raw_response)
+                full_response = result.get("response", "")
+                
+                # Extract SQL and reasoning using regex
+                reasoning_match = re.search(r'REASONING:\s*(.*?)(?=\s*SQL:|$)', full_response, re.DOTALL)
+                sql_match = re.search(r'SQL:\s*(.*?)(?=$)', full_response, re.DOTALL)
+                
+                reasoning = reasoning_match.group(1).strip() if reasoning_match else ""
+                sql = sql_match.group(1).strip() if sql_match else ""
+                
+                self.logger.debug(f"Extracted SQL: {sql[:100]}...")
+                
+                # Return the full response for now - the SQL query engine will parse out the SQL portion
+                return full_response
+                
+            except json.JSONDecodeError as e:
+                self.logger.error(f"JSON parsing error: {str(e)}")
+                # If JSON parsing fails, just return the raw response
+                return raw_response
+            
+        except Exception as e:
+            self.logger.error(f"Error querying Ollama: {str(e)}")
+            return f"Sorry, I encountered an error processing your request: {str(e)}"
+    
+    def _format_prompt(self, query, context):
+        """Format the prompt for the text-to-SQL task."""
+        return f"""
+        You are an expert SQL developer specialized in helping to translate natural language queries about hospital patient data into SQL queries.
+        
+        {context}
+        
+        User Query: {query}
+        
+        Your task:
+        1. Analyze the request and determine what SQL is needed
+        2. Write a PostgreSQL query that answers the user's question
+        3. Explain your reasoning step by step
+        4. Ensure the query is secure and efficient
+        
+        Format your response as follows:
+        
+        REASONING:
+        [Step by step explanation of how you're interpreting the query and constructing the SQL]
+        
+        SQL:
+        [Your PostgreSQL query - only include the actual SQL code here]
+        """
+```
+
+## File: app/core/llm_connector.py
+
+```python
+import boto3
+import json
+from app.config.settings import AppConfig
+
+class BedrockLLM:
+    """Interface for AWS Bedrock LLM services."""
+    
+    def __init__(self):
+        self.model_id = AppConfig.BEDROCK_MODEL_ID
+        self.client = boto3.client('bedrock-runtime')
+    
+    def query(self, user_query, context, max_tokens=1000):
+        """
+        Send a query to the LLM with context information.
+        """
+        prompt = self._format_prompt(user_query, context)
+        
+        # For Claude models in Bedrock
+        body = json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        })
+        
+        try:
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=body
+            )
+            
+            response_body = json.loads(response.get('body').read())
+            return response_body['content'][0]['text']
+            
+        except Exception as e:
+            print(f"Error querying LLM: {str(e)}")
+            return f"Sorry, I encountered an error processing your request: {str(e)}"
+    
+    def _format_prompt(self, query, context):
+        """Format the prompt for the LLM."""
+        return f"""
+        You are a helpful assistant specialized in analyzing hospital patient data.
+        
+        Context information about the hospital patient records:
+        {context}
+        
+        User query: {query}
+        
+        Please analyze the data and provide a clear, concise, and accurate answer.
+        If calculations are involved, show your reasoning step by step.
+        If the data doesn't contain information to answer the query, please state that clearly.
+        """
+```
+
+## File: app/core/__init__.py
+
+```python
+
+```
+
+## File: app/core/sql_query_engine.py
+
+```python
+# app/core/sql_query_engine.py
+import re
+from typing import Dict, List, Any, Tuple, Optional
+import psycopg2
+import psycopg2.extras
+import polars as pl
+from io import StringIO
+
+from app.core.llm_connector import BedrockLLM
+from app.utils.db import get_db_connection
+from app.utils.logging import get_logger
+from app.config.settings import AppConfig
+
+class SQLQueryEngine:
+    """
+    Processes natural language queries by converting them to SQL using LLM,
+    executing the SQL against the database, and formatting the results.
+    
+    Flow:
+    User query -> LLM generates SQL -> SQL executed on DB -> Results returned to LLM -> Response formatted
+    """
+
+    def __init__(self):
+        """Initialize the SQL Query Engine with LLM connector."""
+        self.logger = get_logger(__name__)
+        
+        # Choose LLM implementation based on config
+        if AppConfig.USE_OLLAMA:
+            from app.core.ollama_connector import OllamaLLM
+            self.llm = OllamaLLM()
+            self.logger.info("Using Ollama for LLM processing")
+        else:
+            from app.core.llm_connector import BedrockLLM
+            self.llm = BedrockLLM()
+            self.logger.info("Using AWS Bedrock for LLM processing")
+        
+        self.db_schema = None
+        
+        # Load DB schema on initialization
+        self._load_db_schema()
+        
+    def process_query(self, user_query: str) -> Dict[str, Any]:
+        """
+        Process a natural language query by:
+        1. Converting it to SQL using LLM
+        2. Validating the SQL for safety
+        3. Executing the SQL against the database
+        4. Formatting the results with LLM
+        
+        Args:
+            user_query: Natural language query from the user
+            
+        Returns:
+            Dictionary containing the response and metadata
+        """
+        self.logger.info(f"Processing natural language query: {user_query}")
+        
+        try:
+            # Step 1: Convert natural language to SQL
+            generated_sql, reasoning = self._generate_sql_from_query(user_query)
+            
+            if not generated_sql:
+                return {
+                    "response": "I couldn't generate a valid SQL query for your question. Could you rephrase it?",
+                    "success": False,
+                    "sql_generated": False
+                }
+            
+            # Step 2: Validate SQL for safety
+            is_safe, safety_message = self._validate_sql_safety(generated_sql)
+            if not is_safe:
+                self.logger.warning(f"Unsafe SQL query generated: {generated_sql}")
+                return {
+                    "response": f"I couldn't create a safe query for your question. {safety_message}",
+                    "success": False,
+                    "sql_generated": True,
+                    "sql": generated_sql,
+                    "reasoning": reasoning
+                }
+            
+            # Step 3: Execute SQL query
+            result_data, column_names, error = self._execute_sql_query(generated_sql)
+            
+            if error:
+                self.logger.error(f"SQL execution error: {error}")
+                
+                # Try to get LLM to fix the query
+                fixed_sql, fix_reasoning = self._fix_sql_query(generated_sql, error, user_query)
+                
+                if fixed_sql and fixed_sql != generated_sql:
+                    self.logger.info(f"Attempting to execute fixed SQL: {fixed_sql}")
+                    result_data, column_names, error = self._execute_sql_query(fixed_sql)
+                    
+                    if not error:
+                        generated_sql = fixed_sql
+                        reasoning += f"\n\nFixed SQL reasoning: {fix_reasoning}"
+                
+                # If we still have an error after attempting to fix
+                if error:
+                    return {
+                        "response": f"I generated a SQL query but encountered an error when executing it: {error}",
+                        "success": False,
+                        "sql_generated": True,
+                        "sql": generated_sql,
+                        "reasoning": reasoning,
+                        "error": error
+                    }
+            
+            # Step 4: Format the results using LLM
+            if result_data:
+                formatted_response = self._format_sql_results(
+                    user_query, generated_sql, result_data, column_names
+                )
+            else:
+                formatted_response = "The query executed successfully but didn't return any results."
+            
+            # Prepare success response
+            return {
+                "response": formatted_response,
+                "success": True,
+                "sql_generated": True,
+                "sql": generated_sql,
+                "reasoning": reasoning,
+                "row_count": len(result_data) if result_data else 0,
+                "column_names": column_names,
+                "data": result_data
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error in SQL query engine: {str(e)}", exc_info=True)
+            return {
+                "response": f"I encountered an error while processing your query: {str(e)}",
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _load_db_schema(self) -> None:
+        """
+        Load database schema information to help with SQL generation.
+        """
+        try:
+            self.logger.info("Loading database schema information")
+            conn = get_db_connection()
+            
+            try:
+                with conn.cursor() as cursor:
+                    # Get list of tables
+                    cursor.execute("""
+                        SELECT table_name 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public'
+                        AND table_type = 'BASE TABLE'
+                    """)
+                    tables = [row[0] for row in cursor.fetchall()]
+                    
+                    # Get table structures
+                    schema_info = {}
+                    for table in tables:
+                        cursor.execute(f"""
+                            SELECT column_name, data_type, is_nullable
+                            FROM information_schema.columns
+                            WHERE table_schema = 'public' AND table_name = %s
+                            ORDER BY ordinal_position
+                        """, (table,))
+                        
+                        columns = []
+                        for row in cursor.fetchall():
+                            columns.append({
+                                "name": row[0],
+                                "type": row[1],
+                                "nullable": row[2]
+                            })
+                        
+                        schema_info[table] = columns
+                        
+                    # Get foreign key relationships
+                    cursor.execute("""
+                        SELECT
+                            tc.table_name AS table_name, 
+                            kcu.column_name AS column_name, 
+                            ccu.table_name AS foreign_table_name,
+                            ccu.column_name AS foreign_column_name
+                        FROM 
+                            information_schema.table_constraints AS tc 
+                            JOIN information_schema.key_column_usage AS kcu
+                              ON tc.constraint_name = kcu.constraint_name
+                              AND tc.table_schema = kcu.table_schema
+                            JOIN information_schema.constraint_column_usage AS ccu
+                              ON ccu.constraint_name = tc.constraint_name
+                              AND ccu.table_schema = tc.table_schema
+                        WHERE tc.constraint_type = 'FOREIGN KEY'
+                        AND tc.table_schema = 'public'
+                    """)
+                    
+                    relationships = []
+                    for row in cursor.fetchall():
+                        relationships.append({
+                            "table": row[0],
+                            "column": row[1],
+                            "foreign_table": row[2],
+                            "foreign_column": row[3]
+                        })
+                    
+                    # Store the complete schema information
+                    self.db_schema = {
+                        "tables": schema_info,
+                        "relationships": relationships
+                    }
+                    
+                    self.logger.info(f"Loaded schema information for {len(tables)} tables")
+                    
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            self.logger.error(f"Error loading database schema: {str(e)}", exc_info=True)
+            self.db_schema = None
+    
+    def _generate_sql_prompt(self, user_query: str) -> str:
+        """
+        Generate a prompt for the LLM to convert natural language to SQL.
+        
+        Args:
+            user_query: The natural language query from the user
+            
+        Returns:
+            Formatted prompt for LLM
+        """
+        # Build schema information string
+        schema_info = ""
+        if self.db_schema:
+            schema_info = "Database Schema:\n"
+            
+            # Add table information
+            for table_name, columns in self.db_schema["tables"].items():
+                schema_info += f"\nTABLE: {table_name}\n"
+                schema_info += "Columns:\n"
+                
+                for col in columns:
+                    nullable = "NULL" if col["nullable"] == "YES" else "NOT NULL"
+                    schema_info += f"- {col['name']} ({col['type']}, {nullable})\n"
+            
+            # Add relationships
+            if self.db_schema["relationships"]:
+                schema_info += "\nRelationships:\n"
+                for rel in self.db_schema["relationships"]:
+                    schema_info += f"- {rel['table']}.{rel['column']} references {rel['foreign_table']}.{rel['foreign_column']}\n"
+        
+        # Build the prompt
+        prompt = f"""
+        You are an expert SQL developer helping to translate natural language queries about hospital patient data into SQL queries.
+        
+        {schema_info}
+        
+        The most important tables are:
+        1. patient_details - Contains patient records with columns like registry_id, age, gender
+        2. diagnosis_details - Contains diagnosis information related to patients, linked by registry_id
+        
+        User Query: {user_query}
+        
+        Your task:
+        1. Analyze the request and determine what SQL is needed
+        2. Write a PostgreSQL query that answers the user's question
+        3. Explain your reasoning step by step
+        4. Ensure the query is secure and efficient
+        
+        Format your response as follows:
+        
+        REASONING:
+        [Step by step explanation of how you're interpreting the query and constructing the SQL]
+        
+        SQL:
+        [Your PostgreSQL query - only include the actual SQL code here]
+        """
+        
+        return prompt
+    
+    def _generate_sql_from_query(self, user_query: str) -> Tuple[str, str]:
+        """
+        Use LLM to generate SQL from natural language query.
+        
+        Args:
+            user_query: The natural language query from the user
+            
+        Returns:
+            Tuple of (generated_sql, reasoning)
+        """
+        prompt = self._generate_sql_prompt(user_query)
+        
+        try:
+            # Get response from LLM
+            response = self.llm.query(prompt, "")
+            
+            # Extract SQL and reasoning from the response
+            sql_match = re.search(r'SQL:\s*(.*?)(?=$|\n\n)', response, re.DOTALL)
+            reasoning_match = re.search(r'REASONING:\s*(.*?)(?=$|\n\nSQL:)', response, re.DOTALL)
+            
+            generated_sql = sql_match.group(1).strip() if sql_match else ""
+            reasoning = reasoning_match.group(1).strip() if reasoning_match else ""
+            
+            # Clean up SQL (remove markdown code block markers if present)
+            generated_sql = re.sub(r'^```sql\s*|\s*```$', '', generated_sql)
+            
+            self.logger.info("SQL query generated successfully")
+            self.logger.debug(f"Generated SQL: {generated_sql}")
+            
+            return generated_sql, reasoning
+            
+        except Exception as e:
+            self.logger.error(f"Error generating SQL: {str(e)}", exc_info=True)
+            return "", f"Error generating SQL: {str(e)}"
+    
+    def _validate_sql_safety(self, sql_query: str) -> Tuple[bool, str]:
+        """
+        Validate that the SQL query is safe to execute.
+        
+        Args:
+            sql_query: The SQL query to validate
+            
+        Returns:
+            Tuple of (is_safe, message)
+        """
+        # Block dangerous operations
+        dangerous_patterns = [
+            (r'\bDROP\b', "DROP operations are not allowed"),
+            (r'\bTRUNCATE\b', "TRUNCATE operations are not allowed"),
+            (r'\bDELETE\b', "DELETE operations are not allowed"),
+            (r'\bUPDATE\b', "UPDATE operations are not allowed"),
+            (r'\bINSERT\b', "INSERT operations are not allowed"),
+            (r'\bALTER\b', "ALTER operations are not allowed"),
+            (r'\bCREATE\b', "CREATE operations are not allowed"),
+            (r'\bGRANT\b', "GRANT operations are not allowed"),
+            (r'\bREVOKE\b', "REVOKE operations are not allowed"),
+            (r';.*?;', "Multiple SQL statements are not allowed"),
+        ]
+        
+        # Check for dangerous patterns
+        for pattern, message in dangerous_patterns:
+            if re.search(pattern, sql_query, re.IGNORECASE):
+                return False, message
+        
+        # Only allow SELECT statements
+        if not re.match(r'^\s*SELECT', sql_query, re.IGNORECASE):
+            return False, "Only SELECT statements are allowed"
+        
+        return True, "SQL query is safe"
+    
+    def _execute_sql_query(self, sql_query: str) -> Tuple[List[Dict[str, Any]], List[str], Optional[str]]:
+        """
+        Execute SQL query and return results.
+        
+        Args:
+            sql_query: The SQL query to execute
+            
+        Returns:
+            Tuple of (result_data, column_names, error_message)
+        """
+        try:
+            self.logger.info("Executing SQL query")
+            conn = get_db_connection()
+            
+            try:
+                with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+                    cursor.execute(sql_query)
+                    results = cursor.fetchall()
+                    
+                    # Get column names
+                    column_names = [desc[0] for desc in cursor.description] if cursor.description else []
+                    
+                    # Convert to list of dicts for easier processing
+                    result_data = []
+                    for row in results:
+                        # Convert to dict while handling potential binary/non-serializable data
+                        row_dict = {}
+                        for i, col_name in enumerate(column_names):
+                            value = row[i]
+                            # Convert non-serializable types to strings
+                            if isinstance(value, (bytes, bytearray)):
+                                value = f"<binary data of length {len(value)}>"
+                            row_dict[col_name] = value
+                        result_data.append(row_dict)
+                    
+                    self.logger.info(f"SQL query executed successfully, returned {len(result_data)} rows")
+                    return result_data, column_names, None
+                    
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            self.logger.error(f"Error executing SQL query: {str(e)}", exc_info=True)
+            return [], [], str(e)
+    
+    def _format_sql_results(self, user_query: str, sql_query: str, 
+                          result_data: List[Dict[str, Any]], column_names: List[str]) -> str:
+        """
+        Use LLM to format SQL results into natural language response.
+        
+        Args:
+            user_query: Original user query
+            sql_query: The SQL query that was executed
+            result_data: The query results
+            column_names: Names of the columns in the results
+            
+        Returns:
+            Formatted natural language response
+        """
+        # Limit result size to avoid LLM token limits
+        max_rows = 25
+        truncated = len(result_data) > max_rows
+        
+        if truncated:
+            result_sample = result_data[:max_rows]
+            truncation_message = f"\n\nNote: Results limited to {max_rows} rows out of {len(result_data)} total."
+        else:
+            result_sample = result_data
+            truncation_message = ""
+        
+        # Format results as a readable table for the prompt
+        result_table = "Results:\n"
+        
+        # Convert to DataFrame for easier formatting
+        # Create a Polars DataFrame from the result sample
+        if result_sample:
+            df = pl.DataFrame(result_sample)
+            if not df.is_empty():
+                # Format as a readable table using Polars
+                result_table += df.to_string(index=False)
+                result_table += "\n\n"
+                result_table += f"Total rows returned: {len(result_data)}{truncation_message}"
+            else:
+                result_table = "No results returned."
+        else:
+            result_table = "No results returned."
+        
+        # Create the prompt for result formatting
+        prompt = f"""
+        You are an expert data analyst helping interpret SQL query results for hospital data.
+        
+        Original User Question: {user_query}
+        
+        SQL Query Used: {sql_query}
+        
+        {result_table}
+        
+        Total rows returned: {len(result_data)}{truncation_message if truncated else ""}
+        
+        Please provide a clear, comprehensive answer to the user's original question based on these results.
+        Format your response in a conversational style, but include specific figures from the data.
+        If helpful, include brief statistical summaries or relevant patterns in the data.
+        """
+        
+        try:
+            # Get formatted response from LLM
+            response = self.llm.query(prompt, "")
+            
+            self.logger.info("Results formatted successfully")
+            return response
+            
+        except Exception as e:
+            self.logger.error(f"Error formatting results: {str(e)}", exc_info=True)
+            
+            # Fallback to basic formatting if LLM fails
+            basic_response = f"Here are the results of your query:\n\n"
+            if result_data:
+                basic_response += f"Found {len(result_data)} records."
+                if truncated:
+                    basic_response += f" Showing first {max_rows}."
+                    
+                # Format a simple table using Polars if available
+                try:
+                    if result_sample:
+                        df = pl.DataFrame(result_sample)
+                        if not df.is_empty():
+                            basic_response += "\n\n" + df.to_string(index=False)
+                        else:
+                            # Manual formatting as fallback
+                            basic_response += self._format_results_manually(result_sample, column_names)
+                    else:
+                        basic_response += "\n\nNo results to display."
+                except Exception:
+                    # Ultimate fallback: manual formatting
+                    basic_response += self._format_results_manually(result_sample, column_names)
+            else:
+                basic_response += "No results found for your query."
+                
+            return basic_response
+    
+    def _format_results_manually(self, result_sample: List[Dict[str, Any]], column_names: List[str]) -> str:
+        """
+        Manually format results as a simple table when other methods fail.
+        
+        Args:
+            result_sample: List of result dictionaries
+            column_names: Names of the columns
+            
+        Returns:
+            Formatted table as string
+        """
+        output = "\n\n"
+        
+        # Add header row
+        for col in column_names:
+            output += f"{col}\t"
+        output += "\n"
+        
+        # Add separator
+        output += "-" * (sum(len(col) + 8 for col in column_names)) + "\n"
+        
+        # Add data rows
+        for row in result_sample:
+            for col in column_names:
+                value = row.get(col, "N/A")
+                # Truncate long values
+                if isinstance(value, str) and len(value) > 30:
+                    value = value[:27] + "..."
+                output += f"{value}\t"
+            output += "\n"
+        
+        return output
+    
+    def _fix_sql_query(self, sql_query: str, error_message: str, user_query: str) -> Tuple[str, str]:
+        """
+        Use LLM to fix a failed SQL query based on the error message.
+        
+        Args:
+            sql_query: The SQL query that failed
+            error_message: The error message returned by the database
+            user_query: The original user query
+            
+        Returns:
+            Tuple of (fixed_sql_query, reasoning)
+        """
+        # Create prompt for fixing SQL
+        prompt = f"""
+        You are an expert SQL developer fixing a PostgreSQL query that failed.
+        
+        Original User Query: {user_query}
+        
+        Failed SQL Query:
+        ```sql
+        {sql_query}
+        ```
+        
+        Error Message: {error_message}
+        
+        Please fix the SQL query to resolve the error. Only return the corrected SQL query and your reasoning.
+        
+        Format your response as follows:
+        
+        REASONING:
+        [Explain what was wrong with the original query and how you fixed it]
+        
+        SQL:
+        [Your fixed PostgreSQL query - only include the actual SQL code here]
+        """
+        
+        try:
+            # Get fixed SQL from LLM
+            response = self.llm.query(prompt, "")
+            
+            # Extract SQL and reasoning from the response
+            sql_match = re.search(r'SQL:\s*(.*?)(?=$|\n\n)', response, re.DOTALL)
+            reasoning_match = re.search(r'REASONING:\s*(.*?)(?=$|\n\nSQL:)', response, re.DOTALL)
+            
+            fixed_sql = sql_match.group(1).strip() if sql_match else ""
+            reasoning = reasoning_match.group(1).strip() if reasoning_match else ""
+            
+            # Clean up SQL (remove markdown code block markers if present)
+            fixed_sql = re.sub(r'^```sql\s*|\s*```$', '', fixed_sql)
+            
+            self.logger.info("SQL query fixed successfully")
+            self.logger.debug(f"Fixed SQL: {fixed_sql}")
+            
+            return fixed_sql, reasoning
+            
+        except Exception as e:
+            self.logger.error(f"Error fixing SQL: {str(e)}", exc_info=True)
+            return "", f"Error fixing SQL: {str(e)}"
+```
+
+## File: app/config/__init__.py
+
+```python
+
+```
+
+## File: app/config/settings.py
+
+```python
+# app/config/settings.py
+import os
+from typing import Dict, Any
+# Add to app/config/settings.py
+import boto3
+
+class AppConfig:
+    """Application configuration settings."""
+    
+    # Environment selection
+    ENV = os.getenv('APP_ENV', 'dev_local')  # Options: dev_local, dev-cloud, stage, prod
+    
+    # Basic settings without defaults that would override env-specific configs
+    DEBUG = os.getenv('DEBUG') == 'True' if os.getenv('DEBUG') else None
+    PORT = os.getenv('PORT')
+    DATA_DIR = os.getenv('DATA_DIR')
+
+    # app/config/settings.py (additions)
+
+    # Ollama settings
+    USE_OLLAMA = os.getenv('USE_OLLAMA', 'True').lower() == 'true'
+    OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'qwen2.5-coder:14b')
+    OLLAMA_HOST = os.getenv('OLLAMA_HOST', 'http://localhost:11434')    
+
+    @classmethod
+    def get_ssm_parameter(cls, parameter_name, default=None):
+        """Fetch a parameter from AWS Systems Manager Parameter Store."""
+        try:
+            if cls.is_development() and not cls.USE_S3:
+                # In local development without AWS, return default
+                return default
+                
+            ssm = boto3.client('ssm', region_name=cls.AWS_REGION)
+            response = ssm.get_parameter(
+                Name=parameter_name,
+                WithDecryption=True
+            )
+            return response['Parameter']['Value']
+        except Exception as e:
+            print(f"Error retrieving parameter {parameter_name}: {str(e)}")
+            return default
+
+
+    # Environment-specific configurations
+    _env_configs: Dict[str, Dict[str, Any]] = {
+        'dev_local': {
+            'DEBUG': True,
+            'PORT': '8080',
+            'DATA_DIR': 'data',
+            'DB_HOST': 'localhost',
+            'DB_PORT': 5432,
+            'DB_NAME': 'hospital_data_test',
+            'DB_USER': 'postgres',
+            'DB_PASSWORD': 'postgres',
+            'USE_S3': False,
+            'AWS_REGION': 'ap-south-1',
+            'LOG_LEVEL': 'DEBUG',
+            'API_KEY_REQUIRED': False
+            
+        },
+        'dev-cloud': {
+            'DEBUG': True,
+            'PORT': '8080',
+            'DATA_DIR': 'data',
+            'DB_HOST': 'dev-aurora-cluster.cluster-xyz.ap-south-1.rds.amazonaws.com',
+            'DB_PORT': 5432,
+            'DB_NAME': 'hospital_data_dev',
+            'DB_USER': 'dev_user',
+            'DB_PASSWORD': os.getenv('DEV_DB_PASSWORD', 'dev_password'),
+            'USE_S3': True,
+            'S3_BUCKET': 'hospital-data-chatbot-dev',
+            'AWS_REGION': 'ap-south-1',
+            'LOG_LEVEL': 'DEBUG',
+            'API_KEY_REQUIRED': True
+            # 'DB_PASSWORD': get_ssm_parameter(f"/{PROJECT_NAME}/dev-cloud/db-password", "dev_password"),            
+        },
+        'stage': {
+            'DEBUG': False,
+            'PORT': '8080',
+            'DATA_DIR': 'data',
+            'DB_HOST': 'stage-aurora-cluster.cluster-xyz.ap-south-1.rds.amazonaws.com',
+            'DB_PORT': 5432,
+            'DB_NAME': 'hospital_data_stage',
+            'DB_USER': 'stage_user',
+            'DB_PASSWORD': os.getenv('STAGE_DB_PASSWORD', 'stage_password'),
+            'USE_S3': True,
+            'S3_BUCKET': 'hospital-data-chatbot-stage',
+            'AWS_REGION': 'ap-south-1',
+            'LOG_LEVEL': 'INFO',
+            'API_KEY_REQUIRED': True
+            # 'DB_PASSWORD': get_ssm_parameter(f"/{PROJECT_NAME}/stage/db-password", "stage_password"),
+
+        },
+        'prod': {
+            'DEBUG': False,
+            'PORT': '8080',
+            'DATA_DIR': 'data',
+            'DB_HOST': 'prod-aurora-cluster.cluster-xyz.ap-south-1.rds.amazonaws.com',
+            'DB_PORT': 5432,
+            'DB_NAME': 'hospital_data_prod',
+            'DB_USER': 'prod_user',
+            'DB_PASSWORD': os.getenv('PROD_DB_PASSWORD', 'change_this_in_prod'),
+            'USE_S3': True,
+            'S3_BUCKET': 'hospital-data-chatbot-prod',
+            'AWS_REGION': 'ap-south-1',
+            'LOG_LEVEL': 'WARNING',
+            'API_KEY_REQUIRED': True
+            # 'DB_PASSWORD': get_ssm_parameter(f"/{PROJECT_NAME}/prod/db-password", "change_this_in_prod"),
+        }
+    }
+    
+    # Apply environment-specific settings - first set defaults
+    env_config = _env_configs.get(ENV, _env_configs['dev_local'])
+    
+    # Now apply the environment config
+    for key, value in env_config.items():
+        locals()[key] = value
+    
+    # Override with environment variables if they exist
+    for key in env_config.keys():
+        env_value = os.getenv(key)
+        if env_value is not None:
+            # Handle special cases for type conversion
+            if key == 'DEBUG' or key == 'USE_S3' or key == 'API_KEY_REQUIRED':
+                locals()[key] = env_value.lower() == 'true'
+            elif key == 'DB_PORT':
+                locals()[key] = int(env_value)
+            else:
+                locals()[key] = env_value
+    
+    # Bedrock settings
+    BEDROCK_MODEL_ID = os.getenv(
+        'BEDROCK_MODEL_ID', 
+        'anthropic.claude-3-sonnet-20240229-v1:0'
+    )
+    
+    # Security settings - ensure API_KEY is always from env var if provided
+    API_KEY = os.getenv('API_KEY', 'default_dev_key')  # Change in production!
+
+
+
+    @classmethod
+    def get_environment_name(cls) -> str:
+        """Get a human-readable name for the current environment."""
+        env_names = {
+            'dev_local': 'Development (Local)',
+            'dev-cloud': 'Development (Cloud)',
+            'stage': 'Staging',
+            'prod': 'Production'
+        }
+        return env_names.get(cls.ENV, cls.ENV)
+    
+    @classmethod
+    def is_development(cls) -> bool:
+        """Check if the current environment is a development environment."""
+        return cls.ENV.startswith('dev')
+    
+    @classmethod
+    def is_production(cls) -> bool:
+        """Check if the current environment is production."""
+        return cls.ENV == 'prod'
+```
+
+## File: app/utils/calculation_handler.py
+
+```python
+# app/utils/calculation_handler.py
+import re
+import polars as pl
+
+class CalculationHandler:
+    """Handles calculations requested by the LLM."""
+    
+    def __init__(self, patient_data, diagnosis_data):
+        self.datasets = {
+            "patient_details": patient_data,
+            "diagnosis_details": diagnosis_data
+        }
+    
+    def process_response(self, llm_response):
+        """
+        Process the LLM response and execute any calculation requests.
+        
+        Args:
+            llm_response: The response from the LLM
+            
+        Returns:
+            Processed response with calculations executed
+        """
+        # Pattern to find calculation requests
+        pattern = r'\[CALCULATE: ([^\]]+)\]'
+        
+        # Find all calculation requests
+        calculation_requests = re.findall(pattern, llm_response)
+        
+        processed_response = llm_response
+        
+        # Execute each calculation
+        for calc_request in calculation_requests:
+            calc_result = self._execute_calculation(calc_request)
+            
+            # Replace the calculation request with the result
+            processed_response = processed_response.replace(
+                f"[CALCULATE: {calc_request}]", 
+                str(calc_result)
+            )
+            
+        return processed_response
+    
+    def _execute_calculation(self, calc_request):
+        """Execute a specific calculation request."""
+        try:
+            # Parse dataset, operation and column
+            parts = calc_request.split('.')
+            if len(parts) != 2:
+                return "Error: Invalid calculation format. Use dataset.operation(column)"
+            
+            dataset_name = parts[0].strip()
+            operation_part = parts[1].strip()
+            
+            if dataset_name not in self.datasets:
+                return f"Error: Unknown dataset '{dataset_name}'"
+            
+            df = self.datasets[dataset_name]
+            
+            # Parse operation and column
+            if "(" in operation_part and ")" in operation_part:
+                operation = operation_part.split("(")[0].strip()
+                column = operation_part.split("(")[1].split(")")[0].strip()
+                
+                # Handle special case for count()
+                if operation == "count" and column == "":
+                    return df.height
+                
+                # Make sure column exists (except for operations that don't require it)
+                if column and column not in df.columns:
+                    return f"Error: Column '{column}' not found in {dataset_name}"
+                
+                # Execute standard calculations
+                if operation == "mean" and column:
+                    result = df.select(pl.col(column).mean()).item()
+                    return f"{result:.2f}" if isinstance(result, float) else result
+                
+                elif operation == "min" and column:
+                    return df.select(pl.col(column).min()).item()
+                
+                elif operation == "max" and column:
+                    return df.select(pl.col(column).max()).item()
+                
+                elif operation == "sum" and column:
+                    result = df.select(pl.col(column).sum()).item()
+                    return f"{result:.2f}" if isinstance(result, float) else result
+                
+                elif operation == "median" and column:
+                    result = df.select(pl.col(column).median()).item()
+                    return f"{result:.2f}" if isinstance(result, float) else result
+                
+                elif operation == "std" and column:
+                    result = df.select(pl.col(column).std()).item()
+                    return f"{result:.2f}" if isinstance(result, float) else result
+                
+                elif operation == "count_unique" and column:
+                    return df.select(pl.col(column).n_unique()).item()
+                
+                # Special operation for diagnosis counts by patient
+                elif operation == "count_by_patient" and dataset_name == "diagnosis_details":
+                    # Group by registry_id and count
+                    if "registry_id" not in df.columns:
+                        return "Error: registry_id column not found for patient grouping"
+                    
+                    result = df.group_by("registry_id").agg(pl.count().alias("diagnosis_count"))
+                    summary = (
+                        f"Min diagnoses per patient: {result.select(pl.min('diagnosis_count')).item()}, "
+                        f"Max: {result.select(pl.max('diagnosis_count')).item()}, "
+                        f"Avg: {result.select(pl.mean('diagnosis_count')).item():.2f}"
+                    )
+                    return summary
+            
+            return "Error: Unsupported operation"
+            
+        except Exception as e:
+            return f"Error executing calculation: {str(e)}"
+```
+
+## File: app/utils/logging.py
+
+```python
+# app/utils/logging.py
+import logging
+import sys
+import os
+from datetime import datetime
+from app.config.settings import AppConfig
+
+def setup_logging(log_level=None, log_to_file=True):
+    """
+    Set up application logging.
+    
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_to_file: Whether to log to a file in addition to console
+    
+    Returns:
+        Logger instance for the application
+    """
+    # Get log level from config if not provided
+    if log_level is None:
+        log_level_str = AppConfig.LOG_LEVEL
+        log_level = getattr(logging, log_level_str, logging.INFO)
+    
+    # Create logger
+    logger = logging.getLogger('hospital_chatbot')
+    logger.setLevel(log_level)
+    
+    # Clear existing handlers to avoid duplication
+    if logger.handlers:
+        logger.handlers = []
+    
+    # Create formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
+    )
+    
+    # Create console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    # Create file handler if requested
+    if log_to_file:
+        # Create logs directory if it doesn't exist
+        logs_dir = os.path.join(os.getcwd(), 'logs')
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Create log file name with timestamp and environment
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        env_name = AppConfig.ENV
+        log_file = os.path.join(logs_dir, f'hospital_chatbot_{env_name}_{timestamp}.log')
+        
+        # Create file handler
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    
+    # Log startup message
+    logger.info(f"Logging initialized for {AppConfig.get_environment_name()} environment at level {log_level_str}")
+    
+    return logger
+
+def get_logger(name=None):
+    """
+    Get a logger instance.
+    
+    Args:
+        name: Logger name (optional)
+    
+    Returns:
+        Logger instance
+    """
+    if name:
+        return logging.getLogger(f'hospital_chatbot.{name}')
+    else:
+        return logging.getLogger('hospital_chatbot')
+
+# Initialize default logger
+default_logger = setup_logging()
+```
+
+## File: app/utils/db.py
+
+```python
+# app/utils/db.py
+import psycopg2
+import polars as pl
+from psycopg2.extras import execute_values
+from app.config.settings import AppConfig
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+def _get_pg_type(polars_type):
+    """Map Polars data types to PostgreSQL data types."""
+    type_map = {
+        pl.Int8: "TEXT",
+        pl.Int16: "TEXT",
+        pl.Int32: "TEXT",
+        pl.Int64: "TEXT",
+        pl.UInt8: "TEXT",
+        pl.UInt16: "TEXT",
+        pl.UInt32: "TEXT",
+        pl.UInt64: "TEXT",
+        pl.Float32: "TEXT",
+        pl.Float64: "TEXT",
+        pl.Boolean: "TEXT",
+        pl.Utf8: "TEXT",
+        pl.Date: "DATE",
+        pl.Datetime: "TIMESTAMP",
+        pl.Time: "TIME",
+    }
+    
+    # Default to TEXT if type not found
+    return type_map.get(polars_type, "TEXT")
+
+def get_db_connection():
+    """Get a connection to the PostgreSQL database."""
+    try:
+        logger.debug(f"Creating database connection to {AppConfig.DB_HOST}:{AppConfig.DB_PORT}/{AppConfig.DB_NAME}")
+        conn = psycopg2.connect(
+            host=AppConfig.DB_HOST,
+            database=AppConfig.DB_NAME,
+            user=AppConfig.DB_USER,
+            password=AppConfig.DB_PASSWORD,
+            port=AppConfig.DB_PORT,
+            # Set search path to explicitly use public schema
+            options="-c search_path=public"
+        )
+        logger.debug("Database connection established successfully")
+        
+        # Ensure the search path is set to public
+        cursor = conn.cursor()
+        cursor.execute("SET search_path TO public;")
+        conn.commit()
+        cursor.close()
+        
+        return conn
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {str(e)}", exc_info=True)
+        raise
+
+def create_tables(conn, patient_df, diagnosis_df, drop_if_exists=False):
+    """
+    Create tables for patient data and diagnosis data with appropriate relationships.
+    
+    Args:
+        conn: Database connection
+        patient_df: Patient data DataFrame
+        diagnosis_df: Diagnosis data DataFrame
+        drop_if_exists: If True, drop existing tables before creating them (use only in development)
+    """
+    cursor = conn.cursor()
+    
+    try:
+        # If drop_if_exists is True, drop the tables if they exist
+        if drop_if_exists:
+            logger.warning("DROP_IF_EXISTS flag is True. Dropping existing tables!")
+            
+            # Drop tables in reverse order (to handle foreign key constraints)
+            logger.debug("Dropping diagnosis_details table if it exists")
+            cursor.execute("DROP TABLE IF EXISTS public.diagnosis_details CASCADE;")
+            
+            logger.debug("Dropping patient_details table if it exists")
+            cursor.execute("DROP TABLE IF EXISTS public.patient_details CASCADE;")
+            
+            conn.commit()
+            logger.info("Existing tables dropped successfully")
+    
+        # Create tables
+        logger.debug("Creating patient_details table")
+        create_dynamic_table(conn, "patient_details", patient_df)
+        logger.debug("patient_details table created or already exists")
+        
+        # Create diagnosis table with foreign key
+        logger.debug("Creating diagnosis_details table")
+        create_dynamic_table(conn, "diagnosis_details", diagnosis_df)
+        logger.debug("diagnosis_details table created or already exists")
+        
+        # Add registry_id as Primary Key to patient_details table if it doesn't exist
+        logger.debug("Setting registry_id as primary key on patient_details table")
+        try:
+            # Check if there's already a primary key on the table
+            cursor.execute("""
+            SELECT count(*) FROM pg_constraint 
+            WHERE conrelid = 'public.patient_details'::regclass 
+            AND contype = 'p';
+            """)
+            
+            has_primary_key = cursor.fetchone()[0] > 0
+            
+            if has_primary_key:
+                logger.debug("Primary key already exists on patient_details table")
+                
+                # Check if it's on registry_id
+                cursor.execute("""
+                SELECT a.attname
+                FROM pg_index i
+                JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+                WHERE i.indrelid = 'public.patient_details'::regclass
+                AND i.indisprimary;
+                """)
+                
+                pk_columns = [row[0] for row in cursor.fetchall()]
+                logger.debug(f"Current primary key columns: {pk_columns}")
+                
+                # If registry_id is not part of the primary key, we'll drop it and recreate
+                if "registry_id" not in pk_columns:
+                    logger.debug("Dropping existing primary key to replace with registry_id")
+                    # First get the constraint name
+                    cursor.execute("""
+                    SELECT conname FROM pg_constraint 
+                    WHERE conrelid = 'public.patient_details'::regclass AND contype = 'p'
+                    """)
+                    constraint_name = cursor.fetchone()[0]
+                    
+                    # Now drop it using the actual name
+                    cursor.execute(f"""
+                    ALTER TABLE public.patient_details DROP CONSTRAINT IF EXISTS {constraint_name};
+                    """)
+                    
+                    # Now add registry_id as primary key
+                    cursor.execute("""
+                    ALTER TABLE public.patient_details 
+                    ADD CONSTRAINT pk_patient_registry_id PRIMARY KEY (registry_id);
+                    """)
+                    logger.debug("Primary key set to registry_id")
+            else:
+                # No primary key exists, add it on registry_id
+                cursor.execute("""
+                ALTER TABLE public.patient_details 
+                ADD CONSTRAINT pk_patient_registry_id PRIMARY KEY (registry_id);
+                """)
+                logger.debug("Primary key constraint added on registry_id")
+                
+        except Exception as e:
+            # If we can't add the constraint (e.g., due to duplicate registry_ids), log the error
+            logger.warning(f"Could not set registry_id as primary key: {str(e)}")
+            logger.warning("Foreign key relationship may be impacted. Check for duplicate registry_ids in patient data.")
+        
+        # Check if the foreign key already exists
+        logger.debug("Checking if foreign key constraint exists")
+        cursor.execute("""
+        SELECT COUNT(*) FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_diagnosis_patient' 
+        AND table_name = 'diagnosis_details'
+        AND table_schema = 'public';
+        """)
+        
+        fk_constraint_exists = cursor.fetchone()[0] > 0
+        logger.debug(f"Foreign key constraint exists: {fk_constraint_exists}")
+        
+        if not fk_constraint_exists:
+            # Add foreign key constraint
+            logger.debug("Adding foreign key constraint")
+            try:
+                cursor.execute("""
+                ALTER TABLE public.diagnosis_details 
+                ADD CONSTRAINT fk_diagnosis_patient 
+                FOREIGN KEY (registry_id) 
+                REFERENCES public.patient_details (registry_id);
+                """)
+                logger.debug("Foreign key constraint added successfully")
+            except Exception as e:
+                logger.warning(f"Could not add foreign key constraint: {str(e)}")
+                logger.warning("This may be due to lack of primary key or data integrity issues.")
+        
+        conn.commit()
+        logger.debug("Schema changes committed")
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error updating schema: {str(e)}", exc_info=True)
+        raise
+    finally:
+        cursor.close()
+
+def create_dynamic_table(conn, table_name, df):
+    """
+    Dynamically create a table based on DataFrame schema.
+    
+    Args:
+        conn: Database connection
+        table_name: Name of the table to create
+        df: DataFrame containing the schema information
+    """
+    cursor = conn.cursor()
+    
+    try:
+        # Start building SQL statement with schema explicitly defined
+        create_table_sql = f"CREATE TABLE IF NOT EXISTS public.{table_name} (\n"
+        
+        # If table_name is patient_details, don't add id as primary key
+        # since we'll use registry_id as the primary key
+        if table_name == "patient_details":
+            create_table_sql += "    id SERIAL,\n"  # Not PRIMARY KEY
+        else:
+            create_table_sql += "    id SERIAL PRIMARY KEY,\n"
+        
+        # Add columns based on DataFrame schema
+        for col_name, dtype in df.schema.items():
+            # Convert column name to snake_case if not already
+            col_name_snake = col_name.lower()
+            pg_type = _get_pg_type(dtype)
+            create_table_sql += f"    {col_name_snake} {pg_type},\n"
+        
+        # Add created_at timestamp
+        create_table_sql += "    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n"
+        create_table_sql += ");"
+        
+        # Log the full SQL statement
+        logger.debug(f"Executing SQL: {create_table_sql}")
+        
+        # Execute the SQL
+        cursor.execute(create_table_sql)
+        conn.commit()
+        logger.debug(f"Table {table_name} created or already exists")
+        
+        # Verify table was created
+        cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = %s
+        );
+        """, (table_name,))
+        
+        exists = cursor.fetchone()[0]
+        logger.debug(f"Table verification - {table_name} exists: {exists}")
+        
+    except Exception as e:
+        logger.error(f"Error creating table {table_name}: {str(e)}", exc_info=True)
+        raise
+    finally:
+        cursor.close()
+
+def insert_data(conn, table_name, df):
+    """
+    Insert data into a table with validation.
+    
+    Args:
+        conn: Database connection
+        table_name: Name of the table to insert data into
+        df: DataFrame containing the data to insert
+        
+    Returns:
+        Dictionary containing insertion results including success/failure counts
+    """
+    cursor = conn.cursor()
+    logger.info(f"Starting data validation and insertion for {table_name}")
+    
+    # Track statistics
+    stats = {
+        "total_records": df.height,
+        "valid_records": 0,
+        "rejected_records": 0,
+        "error_reasons": {}
+    }
+    
+    try:
+        # Get column names from the dataframe
+        columns = df.columns
+        logger.debug(f"Columns for {table_name}: {columns}")
+        
+        # Get table schema from the database
+        cursor.execute(f"""
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = '{table_name}' AND table_schema = 'public'
+        """)
+        db_columns = {row[0]: row[1] for row in cursor.fetchall()}
+        logger.debug(f"Database schema for {table_name}: {db_columns}")
+        
+        # Validate records before insertion
+        valid_records = []
+        rejected_records = []
+        
+        # Convert Polars DataFrame to list of tuples
+        all_records = [tuple(row) for row in df.to_numpy()]
+        
+        # Validation for different table types
+        for record_idx, record in enumerate(all_records):
+            try:
+                # Basic validation
+                if len(record) != len(columns):
+                    raise ValueError(f"Record has {len(record)} values but should have {len(columns)}")
+                
+                # Table-specific validation
+                if table_name == "patient_details":
+                    # Ensure registry_id is not empty (needed for primary key)
+                    registry_id_idx = columns.index("registry_id") if "registry_id" in columns else -1
+                    if registry_id_idx >= 0:
+                        if not record[registry_id_idx] or str(record[registry_id_idx]).strip() == "":
+                            raise ValueError("Empty registry_id not allowed (primary key constraint)")
+                
+                elif table_name == "diagnosis_details":
+                    # Ensure registry_id is not empty (needed for foreign key)
+                    registry_id_idx = columns.index("registry_id") if "registry_id" in columns else -1
+                    if registry_id_idx >= 0:
+                        if not record[registry_id_idx] or str(record[registry_id_idx]).strip() == "":
+                            raise ValueError("Empty registry_id not allowed (foreign key constraint)")
+                
+                # Type validation
+                for col_idx, col_name in enumerate(columns):
+                    if col_name in db_columns:
+                        value = record[col_idx]
+                        
+                        # Skip null values
+                        if value is None:
+                            continue
+                            
+                        # Check numeric fields
+                        if db_columns[col_name].startswith(('int', 'float', 'numeric', 'double', 'decimal')):
+                            try:
+                                if not isinstance(value, (int, float)) and value != '':
+                                    float(value)  # Try to convert to validate
+                            except (ValueError, TypeError):
+                                raise ValueError(f"Invalid numeric value for {col_name}: {value}")
+                
+                # Record passes validation
+                valid_records.append(record)
+                
+            except Exception as e:
+                # Record fails validation
+                rejected_records.append((record_idx, record, str(e)))
+                
+                # Track error reasons
+                error_type = str(e)
+                if error_type in stats["error_reasons"]:
+                    stats["error_reasons"][error_type] += 1
+                else:
+                    stats["error_reasons"][error_type] = 1
+        
+        # Update validation stats
+        stats["valid_records"] = len(valid_records)
+        stats["rejected_records"] = len(rejected_records)
+        
+        # Log validation results
+        if rejected_records:
+            logger.warning(f"Validation completed with {len(rejected_records)} rejected records out of {len(all_records)}")
+            # Log first 5 rejected records with reasons
+            for i, (idx, record, reason) in enumerate(rejected_records[:5]):
+                logger.warning(f"Rejected record #{idx}: {reason}")
+                logger.debug(f"Record data: {record}")
+            
+            if len(rejected_records) > 5:
+                logger.warning(f"... and {len(rejected_records) - 5} more rejected records")
+        else:
+            logger.info(f"All {len(valid_records)} records passed validation")
+        
+        # Proceed with insertion of valid records
+        if valid_records:
+            # Prepare SQL statement for execute_values
+            sql = f"INSERT INTO public.{table_name} ({', '.join(columns)}) VALUES %s"
+            
+            logger.info(f"Inserting {len(valid_records)} valid records into public.{table_name}")
+            
+            # Use batch insertion for better performance
+            try:
+                execute_values(cursor, sql, valid_records)
+                conn.commit()
+                logger.info(f"Successfully inserted {len(valid_records)} records into {table_name}")
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Database error during insertion: {str(e)}")
+                stats["insertion_error"] = str(e)
+                stats["valid_records"] = 0  # Reset since insertion failed
+                stats["rejected_records"] = df.height  # All records effectively rejected
+        else:
+            logger.warning(f"No valid records to insert into {table_name}")
+        
+        # Return detailed statistics
+        return stats
+    
+    except Exception as e:
+        logger.error(f"Error in insert_data for {table_name}: {str(e)}", exc_info=True)
+        stats["error"] = str(e)
+        return stats
+    finally:
+        cursor.close()
+```
+
+## File: app/utils/math_utils.py
+
+```python
+
+```
+
+## File: app/utils/__init__.py
+
+```python
+
+```
+
+## File: app/utils/aws.py
+
+```python
+# app/utils/aws.py
+import boto3
+import io
+import os
+from botocore.exceptions import ClientError
+from app.config.settings import AppConfig
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
+
+def get_s3_client():
+    """
+    Create and return an S3 client.
+    
+    Uses AWS credentials from environment variables or IAM role.
+    """
+    return boto3.client(
+        's3',
+        region_name=AppConfig.AWS_REGION
+    )
+
+def upload_to_s3(df, bucket_name, object_key):
+    """
+    Upload a dataframe to S3 as a CSV file.
+    
+    Args:
+        df: A pandas or polars dataframe to upload
+        bucket_name: S3 bucket name
+        object_key: S3 object key (path/filename.csv)
+        
+    Returns:
+        S3 URI of the uploaded file
+    """
+    try:
+        # Create S3 client
+        s3_client = get_s3_client()
+        
+        # Convert dataframe to CSV in memory
+        csv_buffer = io.BytesIO()
+        
+        # Handle both pandas and polars dataframes
+        if hasattr(df, 'to_csv'):  # pandas DataFrame
+            df.to_csv(csv_buffer, index=False)
+        else:  # polars DataFrame
+            # Convert to pandas first if needed
+            if hasattr(df, 'to_pandas'):
+                df.to_pandas().to_csv(csv_buffer, index=False)
+            else:
+                # Write to a temporary file then read it back
+                temp_path = '/tmp/temp_csv.csv'
+                df.write_csv(temp_path)
+                with open(temp_path, 'rb') as f:
+                    csv_buffer.write(f.read())
+                # Clean up temp file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+        
+        # Reset buffer position
+        csv_buffer.seek(0)
+        
+        # Upload to S3
+        s3_client.upload_fileobj(
+            csv_buffer,
+            bucket_name,
+            object_key,
+            ExtraArgs={
+                'ContentType': 'text/csv'
+            }
+        )
+        
+        logger.info(f"File uploaded successfully to s3://{bucket_name}/{object_key}")
+        
+        # Return the S3 URI
+        return f"s3://{bucket_name}/{object_key}"
+    
+    except ClientError as e:
+        logger.error(f"Error uploading to S3: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during S3 upload: {e}")
+        raise
+
+def download_from_s3(bucket_name, object_key, local_path=None):
+    """
+    Download a file from S3.
+    
+    Args:
+        bucket_name: S3 bucket name
+        object_key: S3 object key
+        local_path: Local path to save the file (optional)
+        
+    Returns:
+        Local path of the downloaded file or file content as bytes
+    """
+    try:
+        # Create S3 client
+        s3_client = get_s3_client()
+        
+        if local_path:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            
+            # Download to file
+            s3_client.download_file(bucket_name, object_key, local_path)
+            logger.info(f"File downloaded from S3 to {local_path}")
+            return local_path
+        else:
+            # Download to memory
+            buffer = io.BytesIO()
+            s3_client.download_fileobj(bucket_name, object_key, buffer)
+            buffer.seek(0)
+            logger.info(f"File downloaded from S3 to memory")
+            return buffer.read()
+    
+    except ClientError as e:
+        logger.error(f"Error downloading from S3: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during S3 download: {e}")
+        raise
+```
+
+## File: app/models/__init__.py
+
+```python
+
+```
+
+## File: app/models/data_models.py
+
+```python
+# app/models/data_models.py
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+
+class Patient(BaseModel):
+    """Model representing a patient record."""
+    patient_id: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    admission_date: Optional[datetime] = None
+    discharge_date: Optional[datetime] = None
+    diagnosis: Optional[str] = None
+    stay_duration: Optional[int] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "patient_id": "P12345",
+                "age": 45,
+                "gender": "F",
+                "admission_date": "2023-01-15T10:30:00",
+                "discharge_date": "2023-01-20T14:00:00",
+                "diagnosis": "Pneumonia",
+                "stay_duration": 5
+            }
+        }
+
+class DataStats(BaseModel):
+    """Model representing dataset statistics."""
+    record_count: int
+    column_count: int
+    columns: List[str]
+```
+
+## File: app/api/sql_chat_routes.py
+
+```python
+# app/api/sql_chat_routes.py
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from app.core.sql_query_engine import SQLQueryEngine
+from app.config.settings import AppConfig
+from app.utils.logging import get_logger
+from typing import Dict, Any, Optional, List
+
+router = APIRouter()
+logger = get_logger(__name__)
+
+class SQLChatQuery(BaseModel):
+    """Model for a SQL chat query request."""
+    query: str
+    include_sql: bool = False
+    include_reasoning: bool = False
+
+class SQLChatResponse(BaseModel):
+    """Model for a SQL chat response."""
+    response: str
+    success: bool
+    sql: Optional[str] = None
+    reasoning: Optional[str] = None
+    row_count: Optional[int] = None
+    execution_time_ms: Optional[float] = None
+    error: Optional[str] = None
+
+@router.post("/sql-chat", response_model=SQLChatResponse)
+async def sql_chat(query_data: SQLChatQuery, request: Request) -> Dict[str, Any]:
+    """
+    Process a natural language query by converting it to SQL,
+    executing it on the database, and returning formatted results.
+    
+    Args:
+        query_data: The query request containing the natural language question
+        
+    Returns:
+        Formatted response with results and optional SQL details
+    """
+    if not query_data.query:
+        raise HTTPException(status_code=400, detail="No query provided")
+    
+    try:
+        logger.info(f"Processing SQL chat query: {query_data.query}")
+        
+        # Get SQL Query Engine - initialize new one if not in app state
+        if not hasattr(request.app.state, "sql_query_engine"):
+            logger.info("Initializing SQL Query Engine")
+            request.app.state.sql_query_engine = SQLQueryEngine()
+        
+        sql_query_engine = request.app.state.sql_query_engine
+        
+        # Process the query
+        import time
+        start_time = time.time()
+        result = sql_query_engine.process_query(query_data.query)
+        execution_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+        
+        # Build response based on user preferences
+        response = {
+            "response": result.get("response", ""),
+            "success": result.get("success", False),
+            "execution_time_ms": execution_time
+        }
+        
+        # Include SQL and reasoning if requested or in debug mode
+        if query_data.include_sql or AppConfig.DEBUG:
+            response["sql"] = result.get("sql", None)
+        
+        if query_data.include_reasoning or AppConfig.DEBUG:
+            response["reasoning"] = result.get("reasoning", None)
+        
+        # Include error if present
+        if "error" in result:
+            response["error"] = result["error"]
+        
+        # Include row count if results were returned
+        if "row_count" in result:
+            response["row_count"] = result["row_count"]
+        
+        logger.info(f"SQL chat query processed successfully in {execution_time:.2f}ms")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error processing SQL chat query: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process query: {str(e)}"
+        )
+
+@router.get("/db-schema")
+async def get_db_schema(request: Request) -> Dict[str, Any]:
+    """
+    Get database schema information.
+    Only available in development environments.
+    
+    Returns:
+        Database schema details
+    """
+    # Security check - only available in development
+    if not AppConfig.is_development():
+        raise HTTPException(
+            status_code=403,
+            detail="This endpoint is only available in development environments"
+        )
+    
+    try:
+        # Get SQL Query Engine - initialize new one if not in app state
+        if not hasattr(request.app.state, "sql_query_engine"):
+            logger.info("Initializing SQL Query Engine")
+            request.app.state.sql_query_engine = SQLQueryEngine()
+        
+        sql_query_engine = request.app.state.sql_query_engine
+        
+        # Get schema information
+        if sql_query_engine.db_schema:
+            return {
+                "status": "success",
+                "schema": sql_query_engine.db_schema
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Database schema not loaded"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error retrieving database schema: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve database schema: {str(e)}"
+        )
+```
+
+## File: app/api/__init__.py
+
+```python
+
+```
+
+## File: app/api/middleware.py
+
+```python
+
+```
+
+## File: app/api/dev_routes.py
+
+```python
+# app/api/dev_routes.py
+from fastapi import APIRouter, Depends, Request, HTTPException
+from app.config.settings import AppConfig
+from app.utils.db import get_db_connection, create_tables
+from app.utils.logging import get_logger
+
+router = APIRouter()
+logger = get_logger(__name__)
+
+def dev_mode_only():
+    """Dependency to ensure endpoint only works in development mode."""
+    if not AppConfig.is_development():
+        raise HTTPException(
+            status_code=403, 
+            detail="This endpoint is only available in development environments"
+        )
+
+@router.post("/reset-tables", dependencies=[Depends(dev_mode_only)])
+async def reset_tables(request: Request):
+    """
+    Development-only endpoint to reset database tables.
+    Drops and recreates all tables, then reloads data.
+    """
+    logger.warning("Reset tables endpoint called - will drop and recreate all tables")
+    
+    try:
+        # Get data from the data processor
+        patient_data = request.app.state.data_processor.patient_data
+        diagnosis_data = request.app.state.data_processor.diagnosis_data
+        
+        if patient_data is None or diagnosis_data is None:
+            raise HTTPException(
+                status_code=400,
+                detail="No data available. Load data before resetting tables."
+            )
+        
+        # Get database connection
+        conn = get_db_connection()
+        
+        try:
+            # Drop and recreate tables
+            create_tables(conn, patient_data, diagnosis_data, drop_if_exists=True)
+            
+            # Re-insert data
+            from app.utils.db import insert_data
+            
+            # Insert patient data first (for referential integrity)
+            logger.info(f"Reinserting {patient_data.height} patient records")
+            patient_count = insert_data(conn, "patient_details", patient_data)
+            
+            # Insert diagnosis data linked to patients
+            logger.info(f"Reinserting {diagnosis_data.height} diagnosis records")
+            diagnosis_count = insert_data(conn, "diagnosis_details", diagnosis_data)
+            
+            conn.commit()
+            
+            return {
+                "status": "success",
+                "message": "Tables reset and data reloaded successfully",
+                "details": {
+                    "tables_dropped": ["patient_details", "diagnosis_details"],
+                    "patient_records_inserted": patient_count,
+                    "diagnosis_records_inserted": diagnosis_count
+                }
+            }
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to reset tables: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to reset tables: {str(e)}"
+        )
+
+@router.get("/config", dependencies=[Depends(dev_mode_only)])
+async def get_dev_config():
+    """
+    Development-only endpoint to view current configuration.
+    """
+    config_data = {
+        "environment": AppConfig.ENV,
+        "debug_mode": AppConfig.DEBUG,
+        "database": {
+            "host": AppConfig.DB_HOST,
+            "port": AppConfig.DB_PORT,
+            "name": AppConfig.DB_NAME,
+            "user": AppConfig.DB_USER,
+            # Password masked for security
+            "password": "********" if AppConfig.DB_PASSWORD else None
+        },
+        "s3": {
+            "enabled": AppConfig.USE_S3,
+            "bucket": AppConfig.S3_BUCKET if hasattr(AppConfig, 'S3_BUCKET') else None
+        },
+        "bedrock": {
+            "model_id": AppConfig.BEDROCK_MODEL_ID
+        }
+    }
+    
+    return config_data
+```
+
+## File: app/api/routes.py
+
+```python
+# app/api/routes.py
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from app.config.settings import AppConfig
+from app.api.sql_chat_routes import router as sql_chat_router
+
+router = APIRouter()
+
+class ChatQuery(BaseModel):
+    query: str
+
+@router.get("/health")
+async def health_check():
+    """API health check endpoint."""
+    return {
+        "status": "healthy", 
+        "message": "API is operational",
+        "environment": AppConfig.get_environment_name(),
+        "debug_mode": AppConfig.DEBUG
+    }
+
+@router.get("/data/stats")
+async def data_stats(request: Request):
+    """Get statistics about the loaded data."""
+    stats = request.app.state.data_processor.get_data_stats()
+    
+    # In non-production environments, include more detailed information
+    if AppConfig.is_development():
+        # Include debug information
+        stats["environment"] = AppConfig.get_environment_name()
+        stats["app_config"] = {
+            "db_host": AppConfig.DB_HOST,
+            "s3_enabled": AppConfig.USE_S3,
+            "s3_bucket": AppConfig.S3_BUCKET if AppConfig.USE_S3 else None,
+        }
+    
+    return stats
+
+@router.post("/import-to-db")
+async def import_to_db(request: Request):
+    """Import processed data to the database. Used for nightly batch processing."""
+    try:
+        from app.core.db_importer import DbImporter
+        
+        # Get processed data
+        patient_data = request.app.state.data_processor.patient_data
+        diagnosis_data = request.app.state.data_processor.diagnosis_data
+        
+        # Import to database
+        importer = DbImporter()
+        try:
+            result = importer.import_data(patient_data, diagnosis_data)
+            return {
+                "status": "success",
+                "message": "Data imported successfully",
+                "details": result
+            }
+        finally:
+            importer.close()
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to import data to database: {str(e)}"
+        )
+
+@router.post("/chat")
+async def chat(query: ChatQuery, request: Request):
+    """Process chat requests using LLM."""
+    if not query.query:
+        raise HTTPException(status_code=400, detail="No query provided")
+    
+    # Process the query using the query engine
+    from app.core.query_engine import QueryEngine
+    from app.utils.calculation_handler import CalculationHandler
+    
+    query_engine = QueryEngine(
+        request.app.state.data_processor.patient_data,
+        request.app.state.data_processor.diagnosis_data
+    )
+    llm_response = query_engine.process_query(query.query)
+    
+    # Process any calculation requests in the LLM response
+    calc_handler = CalculationHandler(
+        request.app.state.data_processor.patient_data,
+        request.app.state.data_processor.diagnosis_data
+    )
+    final_response = calc_handler.process_response(llm_response)
+    
+    return {"response": final_response}
+
+@router.get("/health")
+async def health_check():
+    """Enhanced API health check endpoint for AWS load balancer health checks."""
+    try:
+        # Check database connection if needed
+        db_status = "unknown"
+        if hasattr(request.app.state, "data_processor"):
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.close()
+                conn.close()
+                db_status = "connected"
+            except:
+                db_status = "error"
+        
+        return {
+            "status": "healthy", 
+            "message": "API is operational",
+            "environment": AppConfig.get_environment_name(),
+            "timestamp": datetime.now().isoformat(),
+            "db_status": db_status
+        }
+    except:
+        # Simplified response for errors
+        return {"status": "healthy"}  # Still return 200 for load balancer
+
+# Include the SQL chat routes
+router.include_router(sql_chat_router, prefix="/db")
+```
+
+## File: hospital_data_chatbot.egg-info/PKG-INFO
+
+```text
+Metadata-Version: 2.4
+Name: hospital-data-chatbot
+Version: 0.1.0
+Summary: AI-powered hospital data chatbot using Ollama and Text-to-SQL
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: polars>=0.18.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: fastapi>=0.100.0
+Requires-Dist: uvicorn>=0.22.0
+Requires-Dist: openpyxl>=3.1.2
+Requires-Dist: fastexcel>=0.7.0
+Requires-Dist: psycopg2-binary>=2.9.5
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: rich>=13.0.0
+Requires-Dist: requests>=2.31.0
+Requires-Dist: httpx>=0.24.1
+Requires-Dist: boto3>=1.28.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: isort>=5.0.0; extra == "dev"
+Requires-Dist: flake8>=6.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Requires-Dist: mypy>=1.0.0; extra == "dev"
+Provides-Extra: prod
+Requires-Dist: gunicorn>=21.0.0; extra == "prod"
+Provides-Extra: database
+Requires-Dist: alembic>=1.10.0; extra == "database"
+Requires-Dist: sqlalchemy>=2.0.0; extra == "database"
+Provides-Extra: ollama
+Requires-Dist: requests>=2.31.0; extra == "ollama"
+Requires-Dist: retry>=0.9.2; extra == "ollama"
+Dynamic: requires-python
+
+# 🏥 Hospital Data Chatbot
+
+> An AI-powered chatbot for analyzing hospital patient data using AWS Bedrock, Text-to-SQL, and Machine Learning
+
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Python: 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100.0+-ff69b4)
+![Polars](https://img.shields.io/badge/Polars-0.18.0+-orange)
+
+## 📋 Overview
+
+This application provides an intelligent chatbot interface for hospital staff to query patient and diagnosis data through natural language. It uses AWS Bedrock Large Language Models to interpret queries, converts them to SQL, and leverages machine learning models to provide advanced insights and predictions.
+
+### Key Features
+
+- 🔍 **Natural Language to SQL**: Convert plain language questions into precise SQL queries
+- 🧠 **Machine Learning Insights**: Predictive analytics for patient risk and outcomes
+- 📊 **Statistical Analysis**: Accurate calculations on patient metrics and trends
+- 🧹 **Advanced Data Processing**: Data sanitization and feature engineering pipelines
+- 🔄 **Automated Data Pipeline**: Scheduled processing for up-to-date insights
+- 📝 **PostgreSQL Integration**: Direct querying of hospital database with proper relationships
+- 🚀 **AWS Integration**: Leverages AWS Bedrock, SageMaker, Lambda, and other services
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TD
+    subgraph DataSources["Data Sources"]
+        RDS[("AWS RDS<br>PostgreSQL")]
+        S3Raw[("AWS S3<br>Raw Data")]
+    end
+    
+    subgraph DataProcessing["Data Processing"]
+        Lambda["AWS Lambda<br>Feature Engineering"]
+        S3Features[("AWS S3<br>Feature Store")]
+    end
+    
+    subgraph MLPipeline["ML Pipeline"]
+        SageTrain["Amazon SageMaker<br>Training Jobs"]
+        SageModel["Amazon SageMaker<br>Model Registry"]
+        SageEndpoint["Amazon SageMaker<br>Endpoints"]
+    end
+    
+    subgraph APILayer["API Layer"]
+        API["Amazon API Gateway"]
+        EC2["EC2 Instance<br>FastAPI Application"]
+        ELB["Elastic Load Balancer"]
+    end
+    
+    subgraph Monitoring["Monitoring & Management"]
+        CloudWatch["Amazon CloudWatch"]
+        CloudTrail["AWS CloudTrail"]
+        SNS["Amazon SNS<br>Alerts"]
+    end
+    
+    %% Connections
+    RDS --> Lambda
+    S3Raw --> Lambda
+    Lambda --> S3Features
+    S3Features --> SageTrain
+    
+    SageTrain --> SageModel
+    SageModel --> SageEndpoint
+    
+    Lambda --> EC2
+    SageEndpoint --> EC2
+    EC2 --> ELB
+    ELB --> API
+    
+    SageEndpoint --> CloudWatch
+    EC2 --> CloudWatch
+    CloudWatch --> SNS
+    API --> CloudTrail
+    
+    %% Style definitions
+    classDef aws fill:#FF9900,stroke:#232F3E,color:#232F3E,stroke-width:2px
+    classDef db fill:#3B48CC,stroke:#232F3E,color:white,stroke-width:2px
+    classDef storage fill:#3B48CC,stroke:#232F3E,color:white,stroke-width:2px
+    classDef api fill:#CC2264,stroke:#232F3E,color:white,stroke-width:2px
+    classDef compute fill:#EC7211,stroke:#232F3E,color:white,stroke-width:2px
+    classDef monitoring fill:#CC2264,stroke:#232F3E,color:white,stroke-width:2px
+    
+    %% Apply styles
+    class RDS,S3Raw,S3Features db
+    class Lambda compute
+    class SageTrain,SageModel,SageEndpoint aws
+    class API,ELB api
+    class EC2 compute
+    class CloudWatch,CloudTrail,SNS monitoring
+```
+
+## ✨ Advanced Capabilities
+
+### Text-to-SQL Translation
+
+Our application uses AWS Bedrock to intelligently translate natural language questions into SQL queries:
+
+1. **Query Understanding**: Analyzes intent and context of natural language questions
+2. **Schema-Aware Translation**: Generates SQL based on hospital database schema
+3. **SQL Validation**: Ensures queries are safe and optimized before execution
+4. **Result Formatting**: Presents results in an easy-to-understand natural language format
+
+Example query:
+```
+"How many patients over 65 were diagnosed with pneumonia last month?"
+```
+
+### Machine Learning Predictions
+
+The system provides several ML-powered insights:
+
+1. **Patient Risk Stratification**: Classifies patients by risk level using demographic and clinical factors
+2. **Readmission Prediction**: Identifies patients at risk of 30-day readmission
+3. **Diagnosis Clustering**: Groups similar diagnoses to uncover patterns
+4. **Length of Stay Prediction**: Forecasts expected hospital stay duration
+
+All models are trained using Amazon SageMaker and served through SageMaker endpoints.
+
+## 🚀 Getting Started
+
+### Setup with uv (Recommended)
+
+#### Unix/MacOS
+```bash
+./setup_uv.sh
+```
+
+### Traditional Setup
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run locally for testing
+python -m app.main
+```
+
+## 🧪 Local Testing
+
+### Prerequisites
+
+1. Install a local PostgreSQL instance or use Docker:
+   ```bash
+   docker run --name postgres-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=hospital_data_test -p 5432:5432 -d postgres:14
+   ```
+
+2. Create a `.env` file in project root:
+   ```
+   DEBUG=True
+   PORT=8080
+   DATA_DIR=data
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=hospital_data_test
+   DB_USER=postgres
+   DB_PASSWORD=postgres
+   USE_S3=False
+   ```
+
+3. Prepare test data:
+   ```bash
+   mkdir -p data/raw
+   cp path/to/your/hospital_data.xlsx data/raw/
+   ```
+
+4. Launch the API:
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+   ```
+
+5. Access the API documentation:
+   - http://localhost:8080/docs
+
+## 📚 API Endpoints
+
+### Text-to-SQL Interface
+
+```
+POST /api/db/sql-chat
+```
+
+Request body:
+```json
+{
+  "query": "How many male patients with diabetes were admitted last year?",
+  "include_sql": true,
+  "include_reasoning": false
+}
+```
+
+### ML Prediction Endpoints
+
+```
+GET /api/ml/patient-risk?patient_id=P12345
+GET /api/ml/readmission-risk/P12345
+GET /api/ml/diagnosis-clusters
+```
+
+### Core Endpoints
+
+```
+GET /api/health
+GET /api/data/stats
+POST /api/chat
+POST /api/import-to-db
+```
+
+## 🌩️ AWS Deployment
+
+```bash
+# Build Docker image
+docker build -t hospital-chatbot:latest .
+
+# Push to ECR
+aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+docker tag hospital-chatbot:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hospital-chatbot:latest
+docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/hospital-chatbot:latest
+
+# Deploy CloudFormation stack
+aws cloudformation deploy \
+  --template-file deploy/cloudformation.yaml \
+  --stack-name hospital-chatbot \
+  --parameter-overrides Environment=dev ModelId=anthropic.claude-3-sonnet-20240229-v1:0 \
+  --capabilities CAPABILITY_IAM
+```
+
+## 🔒 Security Features
+
+- ✅ **SQL Injection Prevention**: All SQL queries are validated and sanitized
+- ✅ **Input Validation**: Comprehensive data validation at all entry points
+- ✅ **IAM Role-Based Access**: Fine-grained AWS permissions
+- ✅ **Data Encryption**: Hospital data encrypted at rest and in transit
+- ✅ **API Key Authentication**: Secure API access with key validation
+
+## 📂 Project Structure
+
+```
+hospital-data-chatbot/
+│
+├── app/                         # Application code
+│   ├── api/                     # API endpoints
+│   │   ├── routes.py            # Main API routes
+│   │   ├── sql_chat_routes.py   # Text-to-SQL endpoints
+│   │   └── ml_routes.py         # Machine learning endpoints
+│   ├── config/                  # Configuration
+│   ├── core/                    # Core logic
+│   │   ├── data_processor.py    # Data processing and sanitization
+│   │   ├── sql_query_engine.py  # Text-to-SQL engine
+│   │   └── llm_connector.py     # AWS Bedrock LLM interface
+│   ├── ml/                      # ML components
+│   │   ├── feature_engineering.py  # Feature extraction
+│   │   ├── feature_store.py     # Feature storage and caching
+│   │   ├── sagemaker_integration.py # Model training and deployment
+│   │   └── hospital_ml_models.py   # Domain-specific ML models
+│   ├── models/                  # Data models
+│   └── utils/                   # Utilities
+│       ├── db.py                # Database utilities
+│       └── calculation_handler.py # Statistical calculation handling
+│
+├── data/                        # Data files
+│   ├── raw/                     # Original data
+│   └── processed/               # Processed data
+│
+├── deploy/                      # Deployment files
+│   └── cloudformation.yaml      # AWS CloudFormation template
+│
+├── tests/                       # Unit tests
+│
+├── scripts/                     # Utility scripts
+│   └── nightly_import.py        # Nightly data import
+│
+├── Dockerfile                   # Container definition
+├── pyproject.toml               # Project dependencies
+├── setup.py                     # Package setup
+└── README.md                    # This file
+```
+
+## 🚀 Future Enhancements
+
+- 💾 **Model A/B Testing**: Compare different model versions for optimal performance
+- 🧠 **Model Drift Detection**: Automatically detect when models need retraining
+- 🖥️ **Web Dashboard**: Interactive dashboard for visualizing ML insights
+- 🔄 **Real-time Monitoring**: Stream processing for immediate alerts
+- 📊 **Enhanced Visualizations**: Visual representation of prediction results
+- 🔍 **Natural Language Explanations**: Human-readable explanations of ML predictions
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 👥 Contributors
+
+- Naman Sharma
+
+```
+
+## File: hospital_data_chatbot.egg-info/SOURCES.txt
+
+```text
+README.md
+pyproject.toml
+setup.py
+app/__init__.py
+app/main.py
+app/api/__init__.py
+app/api/dev_routes.py
+app/api/middleware.py
+app/api/routes.py
+app/api/sql_chat_routes.py
+app/config/__init__.py
+app/config/settings.py
+app/core/__init__.py
+app/core/data_processor.py
+app/core/db_importer.py
+app/core/llm_connector.py
+app/core/ollama_connector.py
+app/core/query_engine.py
+app/core/sql_query_engine.py
+app/models/__init__.py
+app/models/data_models.py
+app/utils/__init__.py
+app/utils/aws.py
+app/utils/calculation_handler.py
+app/utils/db.py
+app/utils/logging.py
+app/utils/math_utils.py
+hospital_data_chatbot.egg-info/PKG-INFO
+hospital_data_chatbot.egg-info/SOURCES.txt
+hospital_data_chatbot.egg-info/dependency_links.txt
+hospital_data_chatbot.egg-info/requires.txt
+hospital_data_chatbot.egg-info/top_level.txt
+tests/__init__.py
+tests/conftest.py
+tests/test_data_processor.py
+tests/test_llm_connector.py
+tests/test_ollama_setup.py
+tests/test_query_engine.py
+```
+
+## File: hospital_data_chatbot.egg-info/requires.txt
+
+```text
+polars>=0.18.0
+numpy>=1.24.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+openpyxl>=3.1.2
+fastexcel>=0.7.0
+psycopg2-binary>=2.9.5
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+rich>=13.0.0
+requests>=2.31.0
+httpx>=0.24.1
+boto3>=1.28.0
+
+[database]
+alembic>=1.10.0
+sqlalchemy>=2.0.0
+
+[dev]
+pytest>=7.0.0
+black>=23.0.0
+isort>=5.0.0
+flake8>=6.0.0
+pytest-cov>=4.0.0
+mypy>=1.0.0
+
+[ollama]
+requests>=2.31.0
+retry>=0.9.2
+
+[prod]
+gunicorn>=21.0.0
+
+```
+
+## File: hospital_data_chatbot.egg-info/top_level.txt
+
+```text
+app
+tests
+
+```
+
+## File: hospital_data_chatbot.egg-info/dependency_links.txt
+
+```text
+
+
+```
+
+## File: tests/conftest.py
+
+```python
+
+```
+
+## File: tests/test_ollama_setup.py
+
+```python
+# scripts/test_ollama.py
+import requests
+import json
+import argparse
+
+def test_ollama(model, host="http://localhost:11434"):
+    """Test if Ollama is working with the specified model."""
+    print(f"Testing Ollama with model {model} at {host}...")
+    
+    try:
+        # Check if Ollama is running
+        response = requests.get(f"{host}/api/health")
+        if response.status_code != 200:
+            print(f"Error: Ollama service not responding properly: {response.status_code}")
+            return False
+        
+        print("✅ Ollama service is running")
+        
+        # Check if the model is loaded
+        payload = {
+            "model": model,
+            "prompt": "Generate a simple SQL query to count all patients.",
+            "stream": False
+        }
+        
+        response = requests.post(
+            f"{host}/api/generate",
+            json=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        
+        if response.status_code != 200:
+            print(f"Error: Failed to generate response with model {model}: {response.status_code}")
+            return False
+        
+        result = response.json()
+        print("✅ Model is working correctly")
+        print("\nSample output:")
+        print(result.get("response", "No response"))
+        return True
+        
+    except Exception as e:
+        print(f"Error connecting to Ollama: {str(e)}")
+        return False
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Test Ollama setup")
+    parser.add_argument("--model", default="qwen2.5-coder:14b", help="Model to test")
+    parser.add_argument("--host", default="http://localhost:11434", help="Ollama host")
+    
+    args = parser.parse_args()
+    success = test_ollama(args.model, args.host)
+    exit(0 if success else 1)
+```
+
+## File: tests/test_llm_connector.py
+
+```python
+
+```
+
+## File: tests/__init__.py
+
+```python
+
+```
+
+## File: tests/test_query_engine.py
+
+```python
+
+```
+
+## File: tests/test_data_processor.py
+
+```python
+
+```
+
+## File: scripts/nightly_deploy.py
+
+```python
+# scripts/nightly_import.py
+import requests
+import os
+import logging
+from datetime import datetime
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(f"logs/nightly_import_{datetime.now().strftime('%Y%m%d')}.log"),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+def run_nightly_import():
+    """Run the nightly import process."""
+    logger.info("Starting nightly import process")
+    
+    api_url = os.environ.get("API_URL", "http://localhost:8080")
+    api_key = os.environ.get("API_KEY", "default_dev_key")
+    
+    try:
+        # First, trigger data loading/processing
+        headers = {"Authorization": f"Bearer {api_key}"}
+        
+        # Trigger the import
+        import_url = f"{api_url}/api/import-to-db"
+        response = requests.post(import_url, headers=headers)
+        
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"Import completed successfully: {result}")
+            return True
+        else:
+            logger.error(f"Import failed with status {response.status_code}: {response.text}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error during nightly import: {str(e)}")
+        return False
+
+if __name__ == "__main__":
+    run_nightly_import()
+```
+
+## File: .github/workflow/hospital-data-chatbot.yml
+
+```yaml
+name: Hospital Data Chatbot CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev-cloud'
+        type: choice
+        options:
+          - dev-cloud
+          - stage
+          - prod
+
+env:
+  AWS_REGION: ap-south-1
+  PROJECT_NAME: hospital-data-chatbot
+  TERRAFORM_VERSION: '1.5.7'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hospital_data_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install uv
+        run: pip install uv
+      
+      - name: Setup virtual environment
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -e ".[dev]"
+      
+      - name: Run linting
+        run: |
+          source .venv/bin/activate
+          flake8 app tests
+          black --check app tests
+          isort --check-only app tests
+      
+      - name: Run tests with coverage
+        run: |
+          source .venv/bin/activate
+          pytest tests/ --cov=app --cov-report=xml
+      
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  terraform:
+    name: Terraform Infrastructure
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      ecr_repository_url: ${{ steps.terraform-output.outputs.ecr_repository_url }}
+      db_endpoint: ${{ steps.terraform-output.outputs.db_endpoint }}
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Determine environment
+        id: environment
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "ENV=prod" >> $GITHUB_ENV
+          else
+            echo "ENV=dev-cloud" >> $GITHUB_ENV
+          fi
+      
+      - name: Terraform Init
+        working-directory: deploy/terraform
+        run: |
+          if [ -f "environments/backend-config/${{ env.ENV }}.hcl" ]; then
+            terraform init -backend-config=environments/backend-config/${{ env.ENV }}.hcl -reconfigure
+          else
+            terraform init -reconfigure
+          fi
+      
+      - name: Terraform Validate
+        working-directory: deploy/terraform
+        run: terraform validate
+      
+      - name: Create Parameter Store for DB Password
+        run: |
+          aws ssm put-parameter \
+            --name "/${env.PROJECT_NAME}/${{ env.ENV }}/db-password" \
+            --type "SecureString" \
+            --value "${{ secrets.DB_PASSWORD }}" \
+            --overwrite
+      
+      - name: Terraform Plan
+        working-directory: deploy/terraform
+        run: |
+          terraform plan \
+            -var-file=environments/${{ env.ENV }}.tfvars \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -out=tfplan
+      
+      - name: Terraform Apply
+        working-directory: deploy/terraform
+        run: terraform apply -auto-approve tfplan
+      
+      - name: Terraform Output
+        id: terraform-output
+        working-directory: deploy/terraform
+        run: |
+          echo "ecr_repository_url=$(terraform output -raw ecr_repository_url)" >> $GITHUB_OUTPUT
+          echo "db_endpoint=$(terraform output -raw db_endpoint)" >> $GITHUB_OUTPUT
+          echo "vpc_id=$(terraform output -raw vpc_id)" >> $GITHUB_OUTPUT
+          echo "s3_bucket_name=$(terraform output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    name: Build and Push Docker Image
+    needs: terraform
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Determine environment
+        id: environment
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "ENV=prod" >> $GITHUB_ENV
+          else
+            echo "ENV=dev-cloud" >> $GITHUB_ENV
+          fi
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Build and tag Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Add sample data file for container to work with
+          mkdir -p data/raw
+          touch data/raw/hospital_data.xlsx
+          
+          # Build the Docker image
+          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-${{ env.ENV }}:$IMAGE_TAG \
+            --build-arg APP_ENV=${{ env.ENV }} \
+            --build-arg BEDROCK_MODEL_ID=anthropic.claude-3-sonnet-20240229-v1:0 \
+            .
+          
+          # Tag with environment and latest
+          docker tag $ECR_REGISTRY/${{ env.PROJECT_NAME }}-${{ env.ENV }}:$IMAGE_TAG $ECR_REGISTRY/${{ env.PROJECT_NAME }}-${{ env.ENV }}:latest
+          
+          echo "image=$ECR_REGISTRY/${{ env.PROJECT_NAME }}-${{ env.ENV }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "image_latest=$ECR_REGISTRY/${{ env.PROJECT_NAME }}-${{ env.ENV }}:latest" >> $GITHUB_OUTPUT
+      
+      - name: Push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker push ${{ steps.build-image.outputs.image }}
+          docker push ${{ steps.build-image.outputs.image_latest }}
+
+  deploy-app:
+    name: Deploy Application
+    needs: [terraform, build-and-push]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Determine environment
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "ENV=prod" >> $GITHUB_ENV
+          else
+            echo "ENV=dev-cloud" >> $GITHUB_ENV
+          fi
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Init
+        working-directory: deploy/terraform
+        run: |
+          if [ -f "environments/backend-config/${{ env.ENV }}.hcl" ]; then
+            terraform init -backend-config=environments/backend-config/${{ env.ENV }}.hcl -reconfigure
+          else
+            terraform init -reconfigure
+          fi
+      
+      - name: Apply Deployment Configuration
+        working-directory: deploy/terraform
+        run: |
+          terraform apply \
+            -var-file=environments/${{ env.ENV }}.tfvars \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="image_tag=${{ github.sha }}" \
+            -auto-approve \
+            -target=module.app_deployment
+      
+      - name: Verify Deployment
+        working-directory: deploy/terraform
+        run: |
+          # Wait for app to be available
+          APP_URL=$(terraform output -raw app_url)
+          
+          if [ -n "$APP_URL" ]; then
+            # Wait for the endpoint to be available (up to 5 minutes)
+            timeout=300
+            start_time=$(date +%s)
+            
+            echo "Waiting for application to be available..."
+            
+            while true; do
+              current_time=$(date +%s)
+              elapsed=$((current_time - start_time))
+              
+              if [ $elapsed -gt $timeout ]; then
+                echo "Timed out waiting for application"
+                exit 1
+              fi
+              
+              http_status=$(curl -s -o /dev/null -w "%{http_code}" $APP_URL/api/health || echo "000")
+              
+              if [ "$http_status" = "200" ]; then
+                echo "Application is available!"
+                break
+              fi
+              
+              echo "Application not available yet, waiting..."
+              sleep 10
+            done
+          else
+            echo "Application URL not available in outputs"
+          fi
+```
+
+## File: .github/workflow/ReadMe.md
+
+```markdown
+# Hospital Data Chatbot CI/CD Pipeline Documentation
+
+This document describes the CI/CD pipeline for the Hospital Data Chatbot project, which uses GitHub Actions and Terraform for infrastructure provisioning and application deployment.
+
+## Pipeline Overview
+
+The CI/CD pipeline consists of the following stages:
+
+1. **Test**: Run unit tests, linting, and code quality checks
+2. **Terraform**: Provision or update infrastructure with Terraform
+3. **Build and Push**: Build and push Docker image to ECR
+4. **Deploy Application**: Deploy the application using ECS Fargate
+
+## Environments
+
+The pipeline supports three environments:
+
+- **Development (dev-cloud)**: Used for development and testing
+- **Staging (stage)**: Used for pre-production testing
+- **Production (prod)**: Used for production deployment
+
+## Pipeline Triggers
+
+The pipeline is triggered by:
+
+- **Push to main branch**: Automatically deploys to production
+- **Push to develop branch**: Automatically deploys to development
+- **Manual trigger**: Can deploy to any environment via GitHub Actions UI
+
+## Pipeline Stages
+
+### 1. Test Stage
+
+- Sets up Python environment with the `uv` package manager
+- Installs dependencies and development tools
+- Runs linting with flake8, black, and isort
+- Runs unit tests with pytest and uploads coverage report
+
+### 2. Terraform Stage
+
+- Sets up Terraform with the specified version
+- Determines the target environment
+- Initializes Terraform with the correct backend configuration
+- Validates the Terraform configuration
+- Plans the infrastructure changes
+- Applies the infrastructure changes
+- Outputs important resource identifiers for use in later stages
+
+### 3. Build and Push Stage
+
+- Configures AWS credentials
+- Logs in to Amazon ECR
+- Builds the Docker image with environment-specific variables
+- Tags the image with the commit SHA and environment name
+- Pushes the Docker image to ECR
+
+### 4. Deploy Application Stage
+
+- Re-initializes Terraform to ensure up-to-date state
+- Applies the application deployment configuration
+- Updates the ECS service with the new Docker image
+- Verifies the deployment was successful by checking the application health endpoint
+
+## CI/CD Best Practices
+
+The pipeline follows these best practices:
+
+- **Infrastructure as Code**: All infrastructure is defined as code using Terraform
+- **Environment Isolation**: Each environment has its own isolated infrastructure
+- **Automated Testing**: All code changes are tested before deployment
+- **Immutable Infrastructure**: Infrastructure is updated through Terraform, not manual changes
+- **Continuous Integration**: Code changes are automatically tested and deployed
+- **Continuous Deployment**: Successful changes to the main branch are automatically deployed to production
+- **Rollback Capability**: Failed deployments can be rolled back by redeploying the previous version
+- **Logging and Monitoring**: Application logs and metrics are captured in CloudWatch
+- **Security**: Secrets are stored in AWS Secrets Manager and accessed securely
+
+## Setting Up the Pipeline
+
+To set up the CI/CD pipeline:
+
+1. Add the following secrets to your GitHub repository:
+   - `AWS_ACCESS_KEY_ID`: AWS access key with appropriate permissions
+   - `AWS_SECRET_ACCESS_KEY`: AWS secret access key
+   - `DB_PASSWORD`: Database password for each environment
+
+2. Bootstrap the initial infrastructure:
+   ```bash
+   ./deploy/terraform/bootstrap.sh
+```
+

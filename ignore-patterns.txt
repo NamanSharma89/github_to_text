@@ -1,0 +1,36 @@
+# Example ignore patterns for github_to_text.py
+# Add patterns to ignore directories or files, one per line
+# Use glob-style patterns (* matches any characters, ** for recursive matching)
+
+# Common patterns to ignore
+**/temp/**
+**/logs/**
+**/backup/**
+**/cache/**
+**/.vscode/**
+**/.idea/**
+**/test/fixtures/**
+**/test/data/**
+**/docs/examples/**
+
+# Example of ignoring specific project folders
+**/hospital-data-chatbot/data/raw/**
+**/hospital-data-chatbot/models/trained/**
+**/hospital-data-chatbot/notebooks/**
+
+# Example of ignoring specific files by pattern
+**/settings.dev.json
+**/*-backup.*
+**/*.min.js
+**/*.min.css
+**/*.log
+
+# Ignore any CSV files (if they're too large for your LLM context)
+**/*.csv
+
+# Ignore specific files that aren't useful for the LLM
+**/package-lock.json
+**/requirements.txt
+
+# Ignoring project
+/hospital-data-chatbot-infrastructure/
