@@ -1,0 +1,102 @@
+GITHUB REPOSITORY TO TEXT CONVERTER
+ENTERPRISE INTERNAL USE LICENSE
+
+Copyright (c) 2025 Naman Sharma
+
+GRANT OF LICENSE
+Permission is hereby granted to any organization ("Licensee") obtaining a copy 
+of the GitHub Repository to Text Converter software ("Software") to use, modify, 
+and deploy the Software internally within Licensee's organization, subject to 
+the terms and conditions below.
+
+PERMITTED USES
+Licensee may:
+1. Use the Software for internal development, testing, and operational purposes
+2. Modify the Software to meet internal requirements
+3. Deploy the Software on Licensee's internal infrastructure
+4. Create internal documentation and training materials
+5. Allow access to employees, contractors, and authorized personnel
+6. Create backup copies for internal use
+
+RESTRICTIONS
+Licensee may NOT:
+1. Distribute, sell, lease, or sublicense the Software to any third party
+2. Incorporate the Software into products or services offered to external customers
+3. Share the Software with business partners, clients, or other organizations
+4. Publicly distribute modified versions or derivative works
+5. Remove or alter copyright notices, license terms, or attribution
+6. Use the Software to provide commercial services to external parties
+7. Open source or publicly release the Software or any modifications
+8. Include the Software in any commercial product or SaaS offering
+
+INTELLECTUAL PROPERTY
+- Licensor retains all rights, title, and interest in the Software
+- This license does not transfer ownership or grant patent rights
+- Any modifications or improvements remain subject to this license
+- Licensee acknowledges Licensor's proprietary rights
+
+INTERNAL USE DEFINITION
+"Internal use" means use solely within the Licensee's organization for:
+- Employee productivity and development workflows
+- Internal process automation
+- Code analysis and documentation for internal projects
+- Training and educational purposes within the organization
+
+NOT considered internal use:
+- Providing services to external clients using this Software
+- Including in products sold or licensed to third parties
+- Offering as part of consulting services to other organizations
+
+CONTRIBUTIONS AND COLLABORATION
+- Licensee may propose enhancements or bug fixes to Licensor
+- Any contributions to the original Software become property of Licensor 
+  unless otherwise agreed in writing
+- Licensee retains rights to internal modifications not contributed back
+
+COMMERCIAL LICENSING
+For uses beyond internal operations, including:
+- Redistribution rights
+- Commercial product integration  
+- SaaS or service provider usage
+- Reseller or consulting applications
+
+Contact Licensor for commercial licensing terms at naman.sharma89@gmail.com
+
+TERM AND TERMINATION
+- This license is effective upon download/use and continues until terminated
+- License may be terminated by either party with 30 days written notice
+- License terminates immediately upon breach of terms
+- Upon termination, Licensee must cease use and delete all copies
+- IP and restriction clauses survive termination
+
+WARRANTIES AND LIABILITY
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS 
+FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, 
+WHETHER IN CONTRACT, TORT, OR OTHERWISE, ARISING FROM THE USE OF THE SOFTWARE.
+
+COMPLIANCE
+- Licensee agrees to use the Software in compliance with all applicable laws
+- Licensee is responsible for ensuring their use falls within permitted scope
+- Misuse may result in immediate license termination
+
+GOVERNING LAW
+This license is governed by the laws of India. Any disputes will be resolved through binding arbitration in India.
+
+CONTACT INFORMATION
+For commercial licensing, questions, or permissions:
+Email: naman.sharma89@gmail.com
+
+By using this Software, you acknowledge that you have read, understood, 
+and agree to be bound by these terms.
+
+---
+
+DUAL LICENSING NOTICE:
+This software is available under two licenses:
+1. This Enterprise Internal Use License (for internal business use)
+2. MIT License (for open source projects and individual developers)
+
+Choose the license that best fits your intended use case.

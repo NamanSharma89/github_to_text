@@ -364,11 +364,24 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Inspired by the need for token-efficient repository representation
 - Thanks to all contributors and users providing feedback
 
-## 📚 Related Projects
+## 📄 Licensing
 
-- [GitHub API Python](https://github.com/PyGithub/PyGithub) - For advanced GitHub integration
-- [Tree-sitter](https://tree-sitter.github.io/) - For syntax-aware code parsing
-- [CodeBERT](https://github.com/microsoft/CodeBERT) - For code understanding models
+This project uses **dual licensing**:
+
+### 🏢 Enterprise/Commercial Use
+For internal business use, this project is licensed under our **Enterprise Internal Use License**.
+- ✅ Full internal company usage
+- ✅ Modify for internal needs  
+- ❌ No redistribution or commercial resale
+- 📧 Contact [your-email] for commercial licensing
+
+### 🌟 Open Source Use  
+For personal projects, learning, and open source development, this project is licensed under the **MIT License**.
+- ✅ Use, modify, distribute freely
+- ✅ Perfect for individual developers
+- ✅ Include in open source projects
+
+**Choose the license that fits your use case!**
 
 ---
 
