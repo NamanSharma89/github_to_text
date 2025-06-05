@@ -354,10 +354,6 @@ python -m pytest tests/
 python -m flake8 github_to_text.py
 ```
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🙏 Acknowledgments
 
 - Built for the LLM community to efficiently process codebases
@@ -373,7 +369,7 @@ For internal business use, this project is licensed under our **Enterprise Inter
 - ✅ Full internal company usage
 - ✅ Modify for internal needs  
 - ❌ No redistribution or commercial resale
-- 📧 Contact [your-email] for commercial licensing
+- 📧 Contact naman.sharma89@gmail.com for commercial licensing
 
 ### 🌟 Open Source Use  
 For personal projects, learning, and open source development, this project is licensed under the **MIT License**.
